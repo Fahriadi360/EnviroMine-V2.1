@@ -1,4 +1,4 @@
-﻿/*************************************************************
+/*************************************************************
  * JAVASCRIPT.HTML — EnviroMine Compliance Hub v2.1
  * Perbaikan:
  *  1. Tabel (ledger, lab, laporan) sekarang muncul setelah input
@@ -24,15 +24,41 @@ const BACKEND_API_URL = 'https://script.google.com/macros/s/AKfycbwBRGtS1IFaL4yB
 // ============================================================
 // 1. WRAPPER KOMUNIKASI SERVER (DUAL-MODE: GAS / GITHUB PAGES)
 // ============================================================
-function callServer(fnName, ...args) {
-  showLoading(true);
+let loadingCounter = 0;
+function showLoading(state) {
+  if (state) {
+    loadingCounter++;
+  } else {
+    loadingCounter = Math.max(0, loadingCounter - 1);
+  }
+  const el = document.getElementById('loading-overlay');
+  if (el) el.classList.toggle('active', loadingCounter > 0);
+}
+
+function hideLoadingForced() {
+  loadingCounter = 0;
+  const el = document.getElementById('loading-overlay');
+  if (el) el.classList.remove('active');
+}
+
+function _callServerInternal(silent, fnName, ...args) {
+  if (!silent) showLoading(true);
 
   // Mode 1: Jika diakses di dalam Google Apps Script Web App
   if (typeof google !== 'undefined' && google.script && google.script.run && typeof google.script.run[fnName] === 'function') {
     return new Promise((resolve, reject) => {
       google.script.run
-        .withSuccessHandler(res => { showLoading(false); resolve(res); })
-        .withFailureHandler(err => { showLoading(false); Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: err.message || String(err) }); reject(err); })
+        .withSuccessHandler(res => {
+          if (!silent) showLoading(false);
+          resolve(res);
+        })
+        .withFailureHandler(err => {
+          if (!silent) {
+            showLoading(false);
+            Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: err.message || String(err) });
+          }
+          reject(err);
+        })
         [fnName](...args);
     });
   }
@@ -46,20 +72,29 @@ function callServer(fnName, ...args) {
         body: JSON.stringify({ action: fnName, args: args })
       });
       const res = await response.json();
-      showLoading(false);
+      if (!silent) showLoading(false);
       if (!res.success) {
-        Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: res.error });
+        if (!silent) Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: res.error });
         return reject(new Error(res.error));
       }
       resolve(res.data);
     } catch (err) {
-      showLoading(false);
-      Swal.fire({ icon: 'error', title: 'Gagal Terhubung ke Server', text: err.message || String(err) });
+      if (!silent) {
+        showLoading(false);
+        Swal.fire({ icon: 'error', title: 'Gagal Terhubung ke Server', text: err.message || String(err) });
+      }
       reject(err);
     }
   });
 }
-function showLoading(state) { document.getElementById('loading-overlay')?.classList.toggle('active', state); }
+
+function callServer(fnName, ...args) {
+  return _callServerInternal(false, fnName, ...args);
+}
+
+function callServerSilent(fnName, ...args) {
+  return _callServerInternal(true, fnName, ...args);
+}
 
 // ============================================================
 // 2. AUTENTIKASI
@@ -469,11 +504,15 @@ function navigateTo(view) {
 
 async function refreshDisposisiBadge() {
   try {
-    const rows = await callServer('apiGetDisposisiList', AppState.token, {});
-    const openCount = rows.filter(r => r.Status_Penanganan !== 'RESOLVED').length;
+    const rows = await callServerSilent('apiGetDisposisiList', AppState.token, {});
+    const openCount = (rows || []).filter(r => r.Status_Penanganan !== 'RESOLVED').length;
     const badge = document.getElementById('nav-badge-disposisi');
-    badge.textContent = openCount; badge.classList.toggle('hidden', openCount === 0);
-    document.getElementById('bell-dot').style.display = openCount > 0 ? 'block' : 'none';
+    if (badge) {
+      badge.textContent = openCount;
+      badge.classList.toggle('hidden', openCount === 0);
+    }
+    const dot = document.getElementById('bell-dot');
+    if (dot) dot.style.display = openCount > 0 ? 'block' : 'none';
   } catch (e) {}
 }
 
@@ -482,14 +521,14 @@ async function refreshDisposisiBadge() {
 // ============================================================
 function startNotifPolling() {
   pollNotifikasi();
-  AppState.notifPollingInterval = setInterval(pollNotifikasi, 30000);
+  AppState.notifPollingInterval = setInterval(pollNotifikasi, 60000);
 }
 
 async function pollNotifikasi() {
   try {
-    const notifs = await callServer('apiGetNotifikasi', AppState.token);
-    updateBellBadge(notifs.length);
-    AppState.notifCache = notifs;
+    const notifs = await callServerSilent('apiGetNotifikasi', AppState.token);
+    updateBellBadge((notifs || []).length);
+    AppState.notifCache = notifs || [];
   } catch (e) {}
 }
 
