@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>EnviroMine Monitor Air Limbah V2.1</title>
+<title>EnviroMine Compliance Hub</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -20,10 +20,10 @@
 <div id="print-area"><div id="print-doc-root" class="print-doc"></div></div>
 
 <!-- ═══════════════════ LOGIN ═══════════════════ -->
-<div id="view-login">
+<div id="view-login" style="<?!= (typeof loginBgUrl !== 'undefined' && loginBgUrl) ? 'background-image: url(&quot;' + loginBgUrl + '&quot;) !important;' : '' ?>">
 
   <!-- Dedicated Background Image Layer -->
-  <div id="login-bg-image" class="login-bg-image"></div>
+  <div id="login-bg-image" class="login-bg-image" style="<?!= (typeof loginBgUrl !== 'undefined' && loginBgUrl) ? 'background-image: url(&quot;' + loginBgUrl + '&quot;) !important;' : '' ?>"></div>
 
   <!-- Background Overlay -->
   <div class="login-bg-overlay"></div>
@@ -34,7 +34,7 @@
     <!-- Logo -->
     <div class="login-logo-row">
       <div class="login-brand-icon" id="login-brand-icon"><i class="fa-solid fa-droplet"></i></div>
-      <span class="login-brand-name" id="login-app-name">EnviroMine Monitor Air Limbah V2.1</span>
+      <span class="login-brand-name" id="login-app-name">EnviroMine Compliance Hub</span>
     </div>
 
     <!-- Heading -->
@@ -108,7 +108,7 @@
       <button id="btn-sidebar-toggle" title="Sembunyikan Sidebar"><i class="fa-solid fa-bars"></i></button>
       <div class="topbar-brand">
         <img id="topbar-logo" src="https://www.gstatic.com/images/branding/product/2x/sheets_48dp.png" alt="Logo">
-        <div><span class="app-name" id="topbar-appname">EnviroMine</span><span class="app-tag">Monitor Air Limbah V2.1</span></div>
+        <div><span class="app-name" id="topbar-appname">EnviroMine</span><span class="app-tag">Compliance Hub</span></div>
       </div>
       <div class="site-chip"><i class="fa-solid fa-location-dot" style="font-size:10px;"></i><span id="topbar-region">—</span></div>
       <div class="online-pill no-print"><div class="dot"></div>Online</div>
@@ -193,7 +193,7 @@
         <h1 class="page-title" id="dash-title">Dashboard</h1>
         <p class="page-subtitle" id="dash-subtitle">Pemantauan kualitas air limbah tambang.</p>
 
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
+        <div class="kpi-grid-4col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
           <div class="kpi-card">
             <div class="kpi-label" id="kpi-label-1">Sampling Hari Ini</div>
             <div><span class="kpi-value" id="kpi-value-1">—</span><span class="kpi-unit">sampel</span></div>
@@ -291,7 +291,7 @@
         </div>
 
         <form id="form-harian" novalidate>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
+          <div class="form-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
             <div>
               <div class="card-panel">
                 <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-location-dot me-1"></i>Lokasi & Waktu</span></div>
@@ -357,7 +357,7 @@
             <div>
               <div class="card-panel">
                 <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-chart-bar me-1"></i>Pengukuran Parameter Kualitas Air</span></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                <div class="sensor-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
                   <div class="sensor-card" id="sensor-card-ph">
                     <div class="sensor-label">pH<span class="badge badge-compliant" id="sensor-badge-ph">COMPLIANT</span></div>
                     <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-ph" data-param="PH" step="0.01" min="0" max="14" placeholder="7.50" required><span class="sensor-unit">—</span></div>
@@ -402,7 +402,7 @@
             <span class="card-panel-title">Filter Data</span>
             <button class="btn btn-primary btn-sm" id="btn-refresh-ledger"><i class="fa-solid fa-rotate me-1"></i>Refresh Tabel</button>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;">
+          <div class="kpi-grid-4col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;">
             <div><label class="form-label">Dari Tanggal</label><input type="date" id="filter-start" class="form-control"></div>
             <div><label class="form-label">Sampai Tanggal</label><input type="date" id="filter-end" class="form-control"></div>
             <div><label class="form-label">Settling Pond</label>
@@ -440,7 +440,7 @@
         <div class="breadcrumb-row">Monitoring</div>
         <h1 class="page-title">Disposisi & Investigasi Insiden</h1>
         <p class="page-subtitle">Kelola tindak lanjut pelanggaran baku mutu secara berjenjang hingga penyelesaian.</p>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
+        <div class="disp-kpi-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
           <div class="kpi-card"><div class="kpi-label">Terbuka</div><div><span class="kpi-value" id="disp-kpi-open">—</span></div></div>
           <div class="kpi-card"><div class="kpi-label">Dalam Proses</div><div><span class="kpi-value" id="disp-kpi-progress">—</span></div></div>
           <div class="kpi-card"><div class="kpi-label">Diselesaikan</div><div><span class="kpi-value" id="disp-kpi-resolved">—</span></div></div>
@@ -457,7 +457,7 @@
         <div class="breadcrumb-row">Monitoring</div>
         <h1 class="page-title">Hasil Uji Laboratorium</h1>
         <p class="page-subtitle">Upload dan kelola sertifikat hasil uji laboratorium eksternal per periode bulanan.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
+        <div class="lab-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
           <div class="card-panel">
             <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-file-arrow-up me-1"></i>Input Hasil Lab Baru</span></div>
             <form id="form-lab" novalidate>
@@ -507,7 +507,7 @@
           <div id="rep-operator-note" class="hidden" style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:var(--r-sm);padding:.6rem .9rem;font-size:12px;color:var(--warning-text);margin-bottom:1rem;">
             <i class="fa-solid fa-info-circle me-1"></i>Sebagai Operator, Anda dapat generate dan mengirim laporan ke Supervisor untuk direview.
           </div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:.75rem;">
+          <div class="kpi-grid-4col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:.75rem;">
             <div><label class="form-label">Dari Tanggal</label><input type="date" id="rep-start" class="form-control"></div>
             <div><label class="form-label">Sampai Tanggal</label><input type="date" id="rep-end" class="form-control"></div>
             <div><label class="form-label">Settling Pond</label><select id="rep-pond" class="form-control"><option value="">Semua Pond</option></select></div>
@@ -550,7 +550,7 @@
         <div class="breadcrumb-row">Administrasi</div>
         <h1 class="page-title">Master Data</h1>
         <p class="page-subtitle">Kelola titik settling pond dan parameter baku mutu yang digunakan sebagai acuan validasi otomatis.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
+        <div class="master-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
           <div class="card-panel" style="padding:0;">
             <div class="card-panel-header" style="padding:var(--sp-lg);">
               <span class="card-panel-title">Titik Settling Pond</span>
@@ -589,7 +589,7 @@
         <div class="breadcrumb-row">Administrasi</div>
         <h1 class="page-title">Pengaturan Sistem</h1>
         <p class="page-subtitle">Konfigurasi kop surat, identitas perusahaan, dan manajemen akun pengguna.</p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
+        <div class="master-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
           <div>
             <div class="card-panel">
               <div class="card-panel-header"><span class="card-panel-title">Identitas Perusahaan & Kop Surat</span></div>

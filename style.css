@@ -1,5 +1,5 @@
 ﻿  /* ==========================================================
-     STYLESHEET — EnviroMine Monitor Air Limbah V2.1
+     STYLESHEET — EnviroMine Compliance Hub v2.1
      Perubahan: sidebar toggle, chart baru, notifikasi, laporan list
      ========================================================== */
   :root{
@@ -695,10 +695,10 @@
   }
 
   /* ---------- Bottom Nav Mobile ---------- */
-  .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);z-index:150;padding:.35rem 0;}
-  .bottom-nav-item{display:flex;flex-direction:column;align-items:center;gap:.15rem;font-size:10px;color:var(--text-secondary);flex:1;min-height:48px;justify-content:center;}
+  .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);z-index:150;padding:.35rem 0;box-shadow:0 -2px 8px rgba(0,0,0,.06);}
+  .bottom-nav-item{display:flex;flex-direction:column;align-items:center;gap:.15rem;font-size:9.5px;color:var(--text-secondary);flex:1;min-height:48px;justify-content:center;cursor:pointer;padding:.25rem .1rem;position:relative;}
   .bottom-nav-item.active{color:var(--primary);font-weight:700;}
-  .bottom-nav-item i{font-size:16px;}
+  .bottom-nav-item i{font-size:17px;}
 
   @media print{
     .topbar,.sidebar,.bottom-nav,.no-print,#loading-overlay,.modal-backdrop{display:none !important;}
@@ -709,20 +709,187 @@
   }
   #print-area{display:none;}
 
+  /* ======================================================
+     RESPONSIVE — Tablet / Laptop
+     ====================================================== */
   @media(max-width:1024px){
     .dash-chart-grid{grid-template-columns:1fr;}
     .dash-chart-grid-3{grid-template-columns:1fr 1fr;}
   }
+
+  /* ======================================================
+     RESPONSIVE — Mobile (≤ 768px)
+     ====================================================== */
   @media(max-width:768px){
+
+    /* Sidebar: hide, use bottom nav instead */
     .sidebar{display:none !important;}
-    .main-content{padding:var(--sp-lg);padding-bottom:80px;}
     .bottom-nav{display:flex;}
-    .form-control{min-height:46px;} .btn{min-height:44px;}
-    .site-chip{display:none;} .user-meta{display:none;}
-    .dash-chart-grid-3{grid-template-columns:1fr;}
     #btn-sidebar-toggle{display:none;}
+
+    /* Main content padding accounting for bottom nav */
+    .main-content{
+      padding:var(--sp-md);
+      padding-bottom:76px;
+    }
+
+    /* Page header sizing */
+    .page-title{font-size:18px;}
+    .page-subtitle{font-size:12px;margin-bottom:var(--sp-lg);}
+    .breadcrumb-row{font-size:10px;}
+
+    /* Topbar tweaks */
+    .topbar{padding:0 .75rem;gap:.5rem;}
+    .site-chip{display:none;}
+    .user-meta{display:none;}
+    .online-pill{display:none;}
+    .topbar-brand .app-tag{display:none;}
+    .btn-logout-text{display:none;}
+
+    /* KPI cards: 2 columns on mobile */
+    .kpi-grid-4col{
+      display:grid !important;
+      grid-template-columns:repeat(2,1fr) !important;
+      gap:var(--sp-sm) !important;
+    }
+
+    /* KPI value smaller on mobile */
+    .kpi-value{font-size:22px;}
+
+    /* Charts */
+    .dash-chart-grid{grid-template-columns:1fr;}
+    .dash-chart-grid-3{grid-template-columns:1fr;}
+
+    /* Form grids: 4→1 col, 2→1 col */
+    .rep-filter-grid{
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:.5rem !important;
+    }
+    .form-grid-4{
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:.5rem !important;
+    }
+    .form-grid-2{
+      display:grid !important;
+      grid-template-columns:1fr !important;
+      gap:.5rem !important;
+    }
+
+    /* Lab & laporan 2-col → 1-col */
+    .lab-grid, .laporan-grid, .master-grid{
+      display:grid !important;
+      grid-template-columns:1fr !important;
+      gap:var(--sp-md) !important;
+    }
+
+    /* Disposisi KPI: 3→1 col */
+    .disp-kpi-grid{
+      grid-template-columns:1fr !important;
+    }
+
+    /* Tables: smaller font */
+    .table-mine{font-size:11px;}
+    .table-mine thead th{font-size:9.5px;padding:0 6px;}
+    .table-mine tbody td{padding:0 6px;height:40px;}
+
+    /* Buttons: full width on mobile forms */
+    .form-actions{flex-direction:column;}
+    .form-actions .btn{width:100%;}
+
+    /* Form controls: bigger touch targets */
+    .form-control, select.form-control{min-height:44px;font-size:14px;}
+    textarea.form-control{min-height:44px;}
+    .btn{min-height:44px;font-size:13px;}
+    .btn-sm{min-height:36px;}
+
+    /* Sensor cards: always 2 cols on mobile */
+    .sensor-grid{
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:.5rem !important;
+    }
+    .sensor-card input.sensor-input{font-size:20px;}
+
+    /* Modal: full screen on mobile */
+    .modal-backdrop{padding:.5rem;}
+    .modal-box{border-radius:var(--r-lg) var(--r-lg) 0 0;max-height:95vh;}
+
+    /* Incident grid: 1 col on mobile */
+    .incident-grid{grid-template-columns:1fr !important;}
+
+    /* Card panel: reduce padding */
+    .card-panel{padding:var(--sp-md);}
+    .card-panel-header{margin-bottom:.6rem;}
+
+    /* Report filter: 2 cols */
+    .rep-filter-row{
+      display:grid !important;
+      grid-template-columns:1fr 1fr !important;
+      gap:.5rem !important;
+      margin-bottom:.5rem !important;
+    }
+
+    /* Form section layouts */
+    .form-two-col{
+      display:grid !important;
+      grid-template-columns:1fr !important;
+      gap:var(--sp-md) !important;
+    }
+
+    /* Preview gallery: 3 col on mobile */
+    .preview-gallery-item{width:80px;height:80px;}
+    .photo-add-btn{width:80px;height:80px;}
+
+    /* Topbar logout button: icon only */
+    #btn-logout{padding:.32rem .5rem;}
+
+    /* KPI icon smaller on mobile */
+    .kpi-icon{width:28px;height:28px;font-size:12px;}
+
+    /* Flow toggle full width */
+    .flow-toggle{width:100%;}
   }
 
+  /* ======================================================
+     RESPONSIVE — Small phones (≤ 480px)
+     ====================================================== */
+  @media(max-width:480px){
+    .main-content{padding:.65rem;padding-bottom:72px;}
+    .card-panel{padding:.75rem;}
+
+    /* KPI: 2 col stays, but smaller */
+    .kpi-value{font-size:18px;}
+    .kpi-label{font-size:10px;}
+
+    /* Tables scroll hint */
+    .table-scroll{-webkit-overflow-scrolling:touch;}
+
+    /* Topbar even more compact */
+    .topbar{height:52px;}
+    .app-shell{min-height:calc(100vh - 52px);}
+    .topbar-brand img{height:22px;width:22px;}
+    .topbar-brand .app-name{font-size:12px;}
+
+    /* Bottom nav on very small */
+    .bottom-nav-item{font-size:9px;min-height:46px;}
+    .bottom-nav-item i{font-size:15px;}
+
+    /* Login card */
+    .login-center-card{padding:32px 16px 28px;}
+    .login-welcome-title{font-size:1.6rem;}
+    .login-welcome-sub{font-size:.82rem;}
+  }
+
+  /* ======================================================
+     UTILITY CLASSES
+     ====================================================== */
   .hidden{display:none !important;}
   .text-muted{color:var(--text-muted);}
   .ms-1{margin-left:.25rem;}
+  .ms-auto{margin-left:auto;}
+  .d-flex{display:flex;}
+  .flex-wrap{flex-wrap:wrap;}
+  .align-items-center{align-items:center;}
+  .gap-2{gap:.5rem;}

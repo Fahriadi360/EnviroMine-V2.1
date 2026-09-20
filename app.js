@@ -1,5 +1,5 @@
-/*************************************************************
- * JAVASCRIPT.HTML — EnviroMine Monitor Air Limbah V2.1
+﻿/*************************************************************
+ * JAVASCRIPT.HTML — EnviroMine Compliance Hub v2.1
  * Perbaikan:
  *  1. Tabel (ledger, lab, laporan) sekarang muncul setelah input
  *  2. Modal laporan: jenis dokumen mempengaruhi template, nomor sampel
@@ -19,7 +19,7 @@ const AppState = {
 const LOCALSTORAGE_DRAFT_KEY = 'enviromine_draft_daily_log';
 
 // URL Backend Google Apps Script Web App (API Endpoint)
-const BACKEND_API_URL = 'https://script.google.com/macros/s/AKfycbwBRGtS1IFaL4yBz0sviDYSdAWEB4qfo83fxSrawuQK2URtKXIfMNCJIWUiPIQqv0k/exec';
+const BACKEND_API_URL = 'https://script.google.com/macros/s/AKfycbwBRGtS1lFaL4yBz0sviDYSDAMEB4qfo83fxSrawuQK2URtKXlfMNCJIWUiPIQqv0k/exec';
 
 // ============================================================
 // 1. WRAPPER KOMUNIKASI SERVER (DUAL-MODE: GAS / GITHUB PAGES)
@@ -288,7 +288,7 @@ function applyTheme() {
   document.documentElement.style.setProperty('--primary', primary);
   document.getElementById('topbar-appname').textContent = (AppState.config.APP_NAME || 'EnviroMine').split(' ')[0];
   document.getElementById('topbar-region').textContent = AppState.config.REGION_NAME || '';
-  document.getElementById('login-app-name').textContent = AppState.config.APP_NAME || 'EnviroMine Monitor Air Limbah V2.1';
+  document.getElementById('login-app-name').textContent = AppState.config.APP_NAME || 'EnviroMine Compliance Hub';
   const regionFooter = document.getElementById('login-region-footer');
   if (regionFooter) regionFooter.textContent = AppState.config.REGION_NAME || '';
 
@@ -1002,7 +1002,18 @@ async function refreshDisposisiList() {
 
   document.getElementById('disposisi-list').innerHTML = rows.map(r => `
     <div class="incident-card ${r.Status_Penanganan.toLowerCase()}">
-            <div class="d-flex gap-2 flex-wrap align-items-center">
+      <div class="incident-header">
+        <span class="incident-id">${r.Disposisi_ID} · ${r.Pond_ID}</span>
+        <span class="badge ${r.Status_Penanganan === 'OPEN' ? 'badge-violation' : r.Status_Penanganan === 'IN_PROGRESS' ? 'badge-warning' : 'badge-compliant'}">${r.Status_Penanganan.replace('_', ' ')}</span>
+      </div>
+      <div class="incident-grid">
+        <div class="incident-param-box"><div class="incident-field-label">Parameter</div><div class="val">${r.Parameter_Melanggar}</div></div>
+        <div><div class="incident-field-label">Instruksi</div><div style="font-size:12.5px;">${r.Instruksi_Tindak_Lanjut || '-'}</div></div>
+        <div><div class="incident-field-label">PIC</div><div style="font-size:12.5px;">${r.PIC_Tindak_Lanjut || '-'}</div></div>
+      </div>
+      <div class="incident-field-label">Temuan</div>
+      <p style="font-size:12.5px;margin-bottom:.7rem;">${r.Temuan_Investigasi || '-'}</p>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
         ${r.Status_Penanganan === 'OPEN' ? `<button class="btn btn-sm btn-outline" onclick="updateInvestigasi('${r.Disposisi_ID}','IN_PROGRESS')">Mulai Investigasi</button>` : ''}
         ${r.Status_Penanganan === 'IN_PROGRESS' && !r.Verified_By ? `<button class="btn btn-sm btn-outline" onclick="verifyDisposisiRole('${r.Disposisi_ID}','SUPERVISOR')">Verifikasi SPV</button>` : ''}
         ${r.Verified_By && r.Status_Penanganan !== 'RESOLVED' ? `<button class="btn btn-sm btn-primary" onclick="verifyDisposisiRole('${r.Disposisi_ID}','MANAJEMEN')">Approve KTT</button>` : ''}
@@ -1011,7 +1022,6 @@ async function refreshDisposisiList() {
     </div>`).join('') || '<p class="text-muted">Belum ada disposisi tindak lanjut.</p>';
 }
 
-// Fungsi Hapus Disposisi
 async function deleteDisposisi(disposisiId) {
   const result = await Swal.fire({
     title: 'Hapus Disposisi?',
@@ -1191,7 +1201,7 @@ async function refreshLaporanList() {
         ? `<button class="btn btn-sm btn-primary" onclick="openReviewModal('${r.Report_ID}')"><i class="fa-solid fa-pen-to-square me-1"></i>Review</button>` : '';
       const approveBtn = AppState.session.role === 'MANAJEMEN' && r.Status_Laporan === 'MENUNGGU_APPROVE_KTT'
         ? `<button class="btn btn-sm btn-primary" onclick="openApproveKTTModal('${r.Report_ID}')"><i class="fa-solid fa-file-signature me-1"></i>Setujui</button>` : '';
-            const printBtn = r.Status_Laporan === 'FINAL_APPROVED'
+      const printBtn = r.Status_Laporan === 'FINAL_APPROVED'
         ? `<button class="btn btn-sm btn-outline" onclick="printFinalReport('${r.Report_ID}')"><i class="fa-solid fa-print me-1"></i>Cetak</button>` : '';
       const deleteBtn = `<button class="btn btn-sm btn-danger ms-1" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteLaporan('${r.Report_ID}')"><i class="fa-solid fa-trash me-1"></i>Hapus</button>`;
 
@@ -1207,7 +1217,6 @@ async function refreshLaporanList() {
   } catch (e) {}
 }
 
-// Fungsi Hapus Laporan Resmi
 async function deleteLaporan(reportId) {
   const result = await Swal.fire({
     title: 'Hapus Laporan Resmi?',
@@ -1227,7 +1236,7 @@ async function deleteLaporan(reportId) {
     } catch (e) {}
   }
 }
-    
+
 document.getElementById('btn-rep-filter').addEventListener('click', refreshReportTable);
 
 // ── Open Modal Pelaporan ──
@@ -1996,7 +2005,6 @@ async function refreshMasterData() {
     <td><button class="btn btn-sm btn-outline" onclick="editBakuMutu('${b.Param_Code}')">Edit</button></td></tr>`).join('');
 }
 
-// Fungsi Hapus Settling Pond
 async function deleteMasterPond(pondId) {
   const result = await Swal.fire({
     title: 'Hapus Settling Pond?',
