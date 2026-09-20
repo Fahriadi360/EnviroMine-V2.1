@@ -1002,23 +1002,35 @@ async function refreshDisposisiList() {
 
   document.getElementById('disposisi-list').innerHTML = rows.map(r => `
     <div class="incident-card ${r.Status_Penanganan.toLowerCase()}">
-      <div class="incident-header">
-        <span class="incident-id">${r.Disposisi_ID} · ${r.Pond_ID}</span>
-        <span class="badge ${r.Status_Penanganan === 'OPEN' ? 'badge-violation' : r.Status_Penanganan === 'IN_PROGRESS' ? 'badge-warning' : 'badge-compliant'}">${r.Status_Penanganan.replace('_', ' ')}</span>
-      </div>
-      <div class="incident-grid">
-        <div class="incident-param-box"><div class="incident-field-label">Parameter</div><div class="val">${r.Parameter_Melanggar}</div></div>
-        <div><div class="incident-field-label">Instruksi</div><div style="font-size:12.5px;">${r.Instruksi_Tindak_Lanjut || '-'}</div></div>
-        <div><div class="incident-field-label">PIC</div><div style="font-size:12.5px;">${r.PIC_Tindak_Lanjut || '-'}</div></div>
-      </div>
-      <div class="incident-field-label">Temuan</div>
-      <p style="font-size:12.5px;margin-bottom:.7rem;">${r.Temuan_Investigasi || '-'}</p>
-      <div class="d-flex gap-2 flex-wrap">
+            <div class="d-flex gap-2 flex-wrap align-items-center">
         ${r.Status_Penanganan === 'OPEN' ? `<button class="btn btn-sm btn-outline" onclick="updateInvestigasi('${r.Disposisi_ID}','IN_PROGRESS')">Mulai Investigasi</button>` : ''}
         ${r.Status_Penanganan === 'IN_PROGRESS' && !r.Verified_By ? `<button class="btn btn-sm btn-outline" onclick="verifyDisposisiRole('${r.Disposisi_ID}','SUPERVISOR')">Verifikasi SPV</button>` : ''}
         ${r.Verified_By && r.Status_Penanganan !== 'RESOLVED' ? `<button class="btn btn-sm btn-primary" onclick="verifyDisposisiRole('${r.Disposisi_ID}','MANAJEMEN')">Approve KTT</button>` : ''}
+        <button class="btn btn-sm btn-danger ms-auto" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteDisposisi('${r.Disposisi_ID}')"><i class="fa-solid fa-trash me-1"></i>Hapus</button>
       </div>
     </div>`).join('') || '<p class="text-muted">Belum ada disposisi tindak lanjut.</p>';
+}
+
+// Fungsi Hapus Disposisi
+async function deleteDisposisi(disposisiId) {
+  const result = await Swal.fire({
+    title: 'Hapus Disposisi?',
+    text: `Disposisi ${disposisiId} akan dihapus secara permanen.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Ya, Hapus!',
+    cancelButtonText: 'Batal'
+  });
+  if (result.isConfirmed) {
+    try {
+      await callServer('apiDeleteDisposisi', AppState.token, disposisiId);
+      Swal.fire({ icon: 'success', title: 'Disposisi Dihapus', timer: 1200, showConfirmButton: false });
+      refreshDisposisiList();
+      refreshDisposisiBadge();
+    } catch (e) {}
+  }
 }
 
 function openDisposisiModal(logId, parameter, pondId) {
@@ -1179,8 +1191,9 @@ async function refreshLaporanList() {
         ? `<button class="btn btn-sm btn-primary" onclick="openReviewModal('${r.Report_ID}')"><i class="fa-solid fa-pen-to-square me-1"></i>Review</button>` : '';
       const approveBtn = AppState.session.role === 'MANAJEMEN' && r.Status_Laporan === 'MENUNGGU_APPROVE_KTT'
         ? `<button class="btn btn-sm btn-primary" onclick="openApproveKTTModal('${r.Report_ID}')"><i class="fa-solid fa-file-signature me-1"></i>Setujui</button>` : '';
-      const printBtn = r.Status_Laporan === 'FINAL_APPROVED'
+            const printBtn = r.Status_Laporan === 'FINAL_APPROVED'
         ? `<button class="btn btn-sm btn-outline" onclick="printFinalReport('${r.Report_ID}')"><i class="fa-solid fa-print me-1"></i>Cetak</button>` : '';
+      const deleteBtn = `<button class="btn btn-sm btn-danger ms-1" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteLaporan('${r.Report_ID}')"><i class="fa-solid fa-trash me-1"></i>Hapus</button>`;
 
       return `<tr>
         <td class="mono" style="font-size:10px;">${r.Report_ID}</td>
@@ -1188,12 +1201,33 @@ async function refreshLaporanList() {
         <td class="mono" style="font-size:10px;">${r.Nomor_Sampel || '-'}</td>
         <td>${statusBadge}</td>
         <td>${r.Reviewed_By_SPV || '-'}</td>
-        <td style="white-space:nowrap;">${reviewBtn} ${approveBtn} ${printBtn}</td>
+        <td style="white-space:nowrap;">${reviewBtn} ${approveBtn} ${printBtn} ${deleteBtn}</td>
       </tr>`;
     }).join('');
   } catch (e) {}
 }
 
+// Fungsi Hapus Laporan Resmi
+async function deleteLaporan(reportId) {
+  const result = await Swal.fire({
+    title: 'Hapus Laporan Resmi?',
+    text: `Laporan ${reportId} akan dihapus secara permanen.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Ya, Hapus!',
+    cancelButtonText: 'Batal'
+  });
+  if (result.isConfirmed) {
+    try {
+      await callServer('apiDeleteLaporan', AppState.token, reportId);
+      Swal.fire({ icon: 'success', title: 'Laporan Dihapus', timer: 1200, showConfirmButton: false });
+      refreshLaporanList();
+    } catch (e) {}
+  }
+}
+    
 document.getElementById('btn-rep-filter').addEventListener('click', refreshReportTable);
 
 // ── Open Modal Pelaporan ──
@@ -1952,11 +1986,38 @@ async function refreshMasterData() {
     <tr><td class="mono">${p.Pond_ID}</td><td>${p.Nama_Pond}</td><td>${p.Blok_Area}</td>
     <td class="numeric">${p.Latitude ?? '-'}</td><td class="numeric">${p.Longitude ?? '-'}</td>
     <td><span class="badge ${p.Status === 'AKTIF' ? 'badge-compliant' : 'badge-info'}">${p.Status}</span></td>
-    <td><button class="btn btn-sm btn-outline" onclick="openPondModal('${p.Pond_ID}')"><i class="fa-solid fa-pen"></i></button></td></tr>`).join('');
+    <td style="white-space:nowrap;">
+      <button class="btn btn-sm btn-outline" title="Edit" onclick="openPondModal('${p.Pond_ID}')"><i class="fa-solid fa-pen"></i></button>
+      <button class="btn btn-sm btn-danger ms-1" title="Hapus" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteMasterPond('${p.Pond_ID}')"><i class="fa-solid fa-trash"></i></button>
+    </td></tr>`).join('');
   document.getElementById('master-bakumutu-body').innerHTML = AppState.bakuMutu.map(b => `
     <tr><td class="mono">${b.Param_Code}</td><td>${b.Nama_Parameter}</td>
     <td class="numeric">${b.Batas_Min}</td><td class="numeric">${b.Batas_Max}</td>
     <td><button class="btn btn-sm btn-outline" onclick="editBakuMutu('${b.Param_Code}')">Edit</button></td></tr>`).join('');
+}
+
+// Fungsi Hapus Settling Pond
+async function deleteMasterPond(pondId) {
+  const result = await Swal.fire({
+    title: 'Hapus Settling Pond?',
+    text: `Titik pond ${pondId} akan dihapus dari sistem.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Ya, Hapus!',
+    cancelButtonText: 'Batal'
+  });
+  if (result.isConfirmed) {
+    try {
+      await callServer('apiDeleteMasterPond', AppState.token, pondId);
+      const data = await callServer('apiGetInitialAppData', AppState.token);
+      AppState.ponds = data.ponds;
+      populatePondDropdowns();
+      refreshMasterData();
+      Swal.fire({ icon: 'success', title: 'Settling Pond Dihapus', timer: 1200, showConfirmButton: false });
+    } catch (e) {}
+  }
 }
 
 async function editBakuMutu(code) {
