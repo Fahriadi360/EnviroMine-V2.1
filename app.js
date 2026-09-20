@@ -1,5 +1,5 @@
 /*************************************************************
- * JAVASCRIPT.HTML — EnviroMine Compliance Hub v2.1
+ * JAVASCRIPT.HTML — EnviroMine Monitor Air Limbah V2.1
  * Perbaikan:
  *  1. Tabel (ledger, lab, laporan) sekarang muncul setelah input
  *  2. Modal laporan: jenis dokumen mempengaruhi template, nomor sampel
@@ -288,7 +288,7 @@ function applyTheme() {
   document.documentElement.style.setProperty('--primary', primary);
   document.getElementById('topbar-appname').textContent = (AppState.config.APP_NAME || 'EnviroMine').split(' ')[0];
   document.getElementById('topbar-region').textContent = AppState.config.REGION_NAME || '';
-  document.getElementById('login-app-name').textContent = AppState.config.APP_NAME || 'EnviroMine Compliance Hub';
+  document.getElementById('login-app-name').textContent = AppState.config.APP_NAME || 'EnviroMine Monitor Air Limbah V2.1';
   const regionFooter = document.getElementById('login-region-footer');
   if (regionFooter) regionFooter.textContent = AppState.config.REGION_NAME || '';
 
