@@ -1,975 +1,1818 @@
-﻿<!DOCTYPE html>
-<html lang="id">
+<!DOCTYPE html>
+<html lang="id" class="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>EnviroMine Monitor Air Limbah V2.1</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EnviroMine Monitor — Limbah B3 (PT. Etam Manunggal Jaya)</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            vault: {
+              bg: '#0d0f15',
+              surface: '#141721',
+              card: '#1b1f2e',
+              sidebar: '#0f1118',
+              lime: '#d4f933',
+              cyan: '#38bdf8',
+              border: 'rgba(255, 255, 255, 0.08)'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="bg-vault-bg text-slate-100 antialiased selection:bg-vault-lime selection:text-slate-950">
 
-<!-- ═══════════════════ LOADING ═══════════════════ -->
-<div id="loading-overlay"><div class="spinner"></div></div>
+  <!-- ======================================================================
+       1. AUTH VIEW (LOGIN SCREEN - Inspired by Image 1)
+       ====================================================================== -->
+  <div id="authView" class="auth-wrapper">
+    <!-- Atmospheric mountain graphic background (customizable in settings) -->
+    <div id="authBackdropGraphic" class="auth-backdrop-graphic" 
+         style="background-image: url('https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1600&q=80');"></div>
 
-<!-- ═══════════════════ PRINT AREA ═══════════════════ -->
-<div id="print-area"><div id="print-doc-root" class="print-doc"></div></div>
-
-<!-- ═══════════════════ LOGIN ═══════════════════ -->
-<div id="view-login" style="<?!= (typeof loginBgUrl !== 'undefined' && loginBgUrl) ? 'background-image: url(&quot;' + loginBgUrl + '&quot;) !important;' : '' ?>">
-
-  <!-- Dedicated Background Image Layer -->
-  <div id="login-bg-image" class="login-bg-image" style="<?!= (typeof loginBgUrl !== 'undefined' && loginBgUrl) ? 'background-image: url(&quot;' + loginBgUrl + '&quot;) !important;' : '' ?>"></div>
-
-  <!-- Background Overlay -->
-  <div class="login-bg-overlay"></div>
-
-  <!-- Centered Card -->
-  <div class="login-center-card">
-
-    <!-- Logo -->
-    <div class="login-logo-row">
-      <div class="login-brand-icon" id="login-brand-icon"><i class="fa-solid fa-droplet"></i></div>
-      <span class="login-brand-name" id="login-app-name">EnviroMine Monitor Air Limbah V2.1</span>
-    </div>
-
-    <!-- Heading -->
-    <h1 class="login-welcome-title">Welcome Back!</h1>
-    <p class="login-welcome-sub">Masuk ke Sistem Pemantauan Kualitas Air Limbah Tambang</p>
-
-    <!-- Form -->
-    <form id="form-login" novalidate>
-
-      <!-- Username -->
-      <div class="login-field-group">
-        <span class="login-field-icon">
-          <i class="fa-regular fa-user"></i>
+    <div class="auth-card">
+      <!-- Brand & Header -->
+      <div class="flex items-center justify-between mb-8">
+        <div class="flex items-center gap-3">
+          <div id="loginLogoContainer" class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-500 to-vault-lime flex items-center justify-center shadow-lg shadow-sky-500/20 overflow-hidden">
+            <i data-lucide="shield-alert" id="loginLogoIcon" class="w-5 h-5 text-slate-950"></i>
+            <img id="loginLogoImg" class="w-full h-full object-contain hidden" alt="Logo">
+          </div>
+          <div>
+            <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
+              EnviroMine<span class="text-vault-cyan">.</span>
+            </h1>
+            <p id="authCompanyDisplay" class="text-[11px] text-slate-400 font-medium">PT. Etam Manunggal Jaya</p>
+          </div>
+        </div>
+        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 text-sky-400 border border-slate-700/60">
+          TPS LB3 01
         </span>
-        <input
-          id="login-username"
-          type="text"
-          autocomplete="username"
-          placeholder="Masukkan username Anda"
-          required
-        />
       </div>
 
-      <!-- Password -->
-      <div class="login-field-group">
-        <span class="login-field-icon">
-          <i class="fa-solid fa-lock"></i>
-        </span>
-        <input
-          id="login-password"
-          type="password"
-          autocomplete="current-password"
-          placeholder="••••••••"
-          required
-        />
-        <button type="button" class="login-pw-toggle" id="login-pw-toggle" title="Tampilkan password">
-          <i class="fa-regular fa-eye" id="login-pw-eye-icon"></i>
+      <!-- Hero Subtitle -->
+      <div class="mb-7">
+        <span class="text-[11px] font-bold tracking-widest text-sky-400 uppercase">DIGITALISASI TPS LB3</span>
+        <h2 class="text-2xl sm:text-3xl font-bold text-white mt-1">Masuk ke Akun<span class="text-vault-cyan">.</span></h2>
+        <p class="text-xs text-slate-400 mt-1.5">Sistem Pencatatan & Neraca Limbah B3 Permen LHK No. 6/2021</p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+        <!-- Username Field -->
+        <div class="auth-input-group">
+          <input type="text" id="loginUsername" required class="auth-input" placeholder="Username (misal: operator / pj123)">
+          <i data-lucide="user" class="auth-input-icon w-4 h-4"></i>
+        </div>
+
+        <!-- Password Field -->
+        <div class="auth-input-group">
+          <input type="password" id="loginPassword" required class="auth-input" placeholder="Password">
+          <i data-lucide="lock" class="auth-input-icon w-4 h-4"></i>
+          <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
+            <i data-lucide="eye" id="eyeIcon" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-6">
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="rememberMe" checked class="rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-0">
+            <span>Ingat saya di perangkat ini</span>
+          </label>
+          <a href="javascript:void(0)" onclick="handleForgotPassword()" class="text-sky-400 hover:underline">Lupa Password?</a>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="btnLoginSubmit" class="btn-primary-pill !w-full">
+          <span>Masuk Sekarang</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </button>
+      </form>
+
+      <!-- Quick Demo Switcher (4 Roles in PRD) -->
+      <div class="mt-8 pt-6 border-t border-slate-800/80">
+        <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3 text-center">
+          Pilih Cepat Role Pengguna (Demo Akses)
+        </p>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="quickFillLogin('operator', 'operator123')" class="role-quick-btn flex items-center justify-between">
+            <span class="font-medium text-slate-200">1. Operator Lapangan</span>
+            <span class="text-[10px] text-emerald-400 font-mono">Input</span>
+          </button>
+          <button type="button" onclick="quickFillLogin('penanggung_jawab', 'pj12345')" class="role-quick-btn flex items-center justify-between">
+            <span class="font-medium text-slate-200">2. PJ TPS LB3</span>
+            <span class="text-[10px] text-vault-lime font-mono">Review</span>
+          </button>
+          <button type="button" onclick="quickFillLogin('admin_hse', 'admin123')" class="role-quick-btn flex items-center justify-between">
+            <span class="font-medium text-slate-200">3. Admin HSE</span>
+            <span class="text-[10px] text-sky-400 font-mono">Master</span>
+          </button>
+          <button type="button" onclick="quickFillLogin('ktt', 'ktt12345')" class="role-quick-btn flex items-center justify-between">
+            <span class="font-medium text-slate-200">4. Manajemen / KTT</span>
+            <span class="text-[10px] text-purple-400 font-mono">Final TTD</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Options Row -->
-      <div class="login-options-row">
-        <label class="login-remember-label">
-          <input type="checkbox" id="login-remember" />
-          <span class="login-custom-check"></span>
-          <span>Ingat Saya</span>
-        </label>
-        <a href="#" class="login-forgot-link" id="login-forgot-link">Lupa kata sandi?</a>
+      <!-- Legal footer -->
+      <div class="mt-6 text-center">
+        <p id="authAddressDisplay" class="text-[11px] text-slate-500">
+          TPS LB3 01 PT. Etam Manunggal Jaya &bull; Desa Batuah, Kutai Kartanegara
+        </p>
       </div>
-
-      <!-- Submit Button -->
-      <button type="submit" class="btn-login-submit" id="btn-login-submit">
-        <span>MASUK</span>
-        <i class="fa-solid fa-chevron-right" style="font-size:12px;"></i>
-      </button>
-
-    </form>
-
-    <!-- Footer region label -->
-    <div class="login-region-footer" id="login-region-footer">Site Monitoring System</div>
-
+    </div>
   </div>
-</div>
 
-<!-- ═══════════════════ APP ═══════════════════ -->
-<div id="app" class="hidden" style="display:flex;flex-direction:column;min-height:100vh;">
+  <!-- ======================================================================
+       2. APP SHELL & VAULT DASHBOARD (Inspired by Image 2)
+       ====================================================================== -->
+  <div id="appShell" class="app-layout hidden">
 
-  <!-- TOPBAR -->
-  <header class="topbar no-print">
-    <div class="topbar-center">
-      <button id="btn-sidebar-toggle" title="Sembunyikan Sidebar"><i class="fa-solid fa-bars"></i></button>
-      <div class="topbar-brand">
-        <img id="topbar-logo" src="https://www.gstatic.com/images/branding/product/2x/sheets_48dp.png" alt="Logo">
-        <div><span class="app-name" id="topbar-appname">EnviroMine</span><span class="app-tag">Monitor Air Limbah V2.1</span></div>
-      </div>
-      <div class="site-chip"><i class="fa-solid fa-location-dot" style="font-size:10px;"></i><span id="topbar-region">—</span></div>
-      <div class="online-pill no-print"><div class="dot"></div>Online</div>
-    </div>
-    <div class="topbar-right">
-      <!-- Tombol Ganti Tema Gelap / Terang -->
-      <button id="btn-theme-toggle" class="theme-btn" title="Ganti Mode Gelap / Terang">
-        <i class="fa-solid fa-moon" id="theme-toggle-icon"></i>
-      </button>
-
-      <div style="position:relative;">
-        <button class="bell-btn" title="Notifikasi"><i class="fa-solid fa-bell" style="font-size:15px;"></i>
-          <span id="bell-dot" class="badge-dot" style="display:none;"></span>
-          <span id="bell-count" class="hidden"></span>
+    <!-- 2.1 SIDEBAR -->
+    <aside id="sidebar" class="sidebar">
+      <!-- Sidebar Header -->
+      <div class="h-[72px] flex items-center justify-between px-5 border-b border-vault-border">
+        <div class="flex items-center gap-3 overflow-hidden">
+          <div id="sidebarLogoContainer" class="w-8 h-8 rounded-xl bg-vault-lime flex items-center justify-center shrink-0 shadow-md shadow-vault-lime/20 overflow-hidden">
+            <i data-lucide="layers" id="sidebarLogoIcon" class="w-4 h-4 text-slate-950 font-bold"></i>
+            <img id="sidebarLogoImg" class="w-full h-full object-contain hidden" alt="Logo">
+          </div>
+          <div class="sidebar-header-title leading-tight">
+            <span class="text-sm font-extrabold tracking-tight text-white flex items-center gap-1">
+              EnviroMine<span class="text-vault-lime font-mono text-xs">V1.1</span>
+            </span>
+            <p id="sidebarCompanyDisplay" class="text-[10px] text-slate-400 truncate">PT. Etam Manunggal Jaya</p>
+          </div>
+        </div>
+        <button onclick="toggleSidebarCollapse()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800">
+          <i data-lucide="panel-left-close" id="sidebarToggleIcon" class="w-4 h-4"></i>
         </button>
       </div>
 
-      <!-- User Chip (Klik untuk Profil) -->
-      <div class="user-chip" id="btn-user-profile" title="Klik untuk Pengaturan Profil">
-        <div class="user-meta">
-          <div class="u-name" id="user-name">—</div>
-          <div class="u-role" id="user-role">—</div>
-        </div>
-        <div class="user-avatar" id="user-avatar-wrap"><span id="user-initial">?</span></div>
-      </div>
-
-      <button class="btn btn-outline btn-sm no-print" id="btn-logout"><i class="fa-solid fa-right-from-bracket me-1"></i>Keluar</button>
-    </div>
-  </header>
-
-  <!-- Backdrop Overlay untuk Mobile Drawer -->
-  <div id="sidebar-backdrop" class="sidebar-backdrop no-print"></div>
-
-  <div class="app-shell">
-
-    <!-- SIDEBAR / MOBILE DRAWER -->
-    <nav class="sidebar no-print" id="sidebar-nav">
-
-      <!-- Mobile Drawer Header (Khusus Layar HP / Tablet) -->
-      <div class="sidebar-mobile-header">
-        <div class="sidebar-mobile-user">
-          <div class="sidebar-mobile-avatar" id="sidebar-mobile-avatar">?</div>
-          <div>
-            <div class="sidebar-mobile-name" id="sidebar-mobile-name">—</div>
-            <div class="sidebar-mobile-role" id="sidebar-mobile-role">—</div>
-          </div>
-        </div>
-        <button class="sidebar-close-btn" id="btn-sidebar-close" title="Tutup Menu">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-
-      <div class="sidebar-section-label" id="sidebar-label-utama">UTAMA</div>
-      <div class="nav-item active" data-view="dashboard" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
-        <div class="nav-item-left"><i class="fa-solid fa-gauge-high"></i>Dashboard</div>
-      </div>
-      <div class="nav-item" data-view="form-harian" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
-        <div class="nav-item-left"><i class="fa-solid fa-flask-vial"></i>Form Lapangan</div>
-      </div>
-      <div class="nav-item" data-view="log-table" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
-        <div class="nav-item-left"><i class="fa-solid fa-table-list"></i>Ledger Log</div>
-      </div>
-
-      <div class="sidebar-section-label" id="sidebar-label-monitoring">MONITORING</div>
-      <div class="nav-item" data-view="disposisi-investigasi" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
-        <div class="nav-item-left"><i class="fa-solid fa-triangle-exclamation"></i>Disposisi & Investigasi</div>
-        <span class="nav-badge hidden" id="nav-badge-disposisi">0</span>
-      </div>
-      <div class="nav-item" data-view="lab" data-roles="SUPERVISOR,MANAJEMEN,ADMIN">
-        <div class="nav-item-left"><i class="fa-solid fa-microscope"></i>Hasil Lab</div>
-      </div>
-
-      <div class="sidebar-section-label" id="sidebar-label-pelaporan">PELAPORAN</div>
-      <div class="nav-item" data-view="laporan" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
-        <div class="nav-item-left"><i class="fa-solid fa-file-lines"></i>Laporan Resmi</div>
-      </div>
-
-      <div class="sidebar-section-label" id="sidebar-label-administrasi">ADMINISTRASI</div>
-      <div class="nav-item" data-view="master" data-roles="SUPERVISOR,MANAJEMEN,ADMIN">
-        <div class="nav-item-left"><i class="fa-solid fa-database"></i>Master Data</div>
-      </div>
-      <div class="nav-item" data-view="settings" data-roles="MANAJEMEN,ADMIN">
-        <div class="nav-item-left"><i class="fa-solid fa-gear"></i>Pengaturan</div>
-      </div>
-
-      <div style="padding:1rem 1.25rem;margin-top:.5rem;border-top:1px solid var(--border);">
-        <a href="#" id="btn-open-signature" style="display:flex;align-items:center;gap:.6rem;font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:.85rem;">
-          <i class="fa-solid fa-signature"></i>Tanda Tangan Digital
-        </a>
-        <a href="#" id="btn-drawer-logout" style="display:flex;align-items:center;gap:.6rem;font-size:12.5px;font-weight:600;color:var(--violation-text);">
-          <i class="fa-solid fa-right-from-bracket"></i>Keluar Akun
-        </a>
-      </div>
-    </nav>
-
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-
-      <!-- ══════════ DASHBOARD ══════════ -->
-      <div id="view-dashboard" class="view-container">
-        <div class="breadcrumb-row">Sistem Pemantauan <span class="chip-inline">Real-time</span></div>
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:var(--sp-sm);">
-          <div>
-            <h1 class="page-title" id="dash-title">Dashboard</h1>
-            <p class="page-subtitle" id="dash-subtitle">Pemantauan kualitas air limbah tambang.</p>
-          </div>
-          <button class="btn btn-sm btn-outline" id="btn-refresh-dashboard" title="Segarkan Data Dashboard"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+      <!-- Navigation Menu -->
+      <div class="flex-1 overflow-y-auto py-4 space-y-6">
+        <!-- Section: MENU -->
+        <div>
+          <p class="px-5 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 nav-text">Menu Operasional</p>
+          <nav class="space-y-1">
+            <a href="javascript:void(0)" onclick="navigateTo('dashboard')" id="nav-dashboard" class="nav-item active">
+              <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+              <span class="nav-text">Dashboard</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('masuk')" id="nav-masuk" class="nav-item">
+              <i data-lucide="arrow-down-to-dot" class="w-4 h-4"></i>
+              <span class="nav-text">Limbah Masuk</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('keluar')" id="nav-keluar" class="nav-item">
+              <i data-lucide="arrow-up-from-dot" class="w-4 h-4"></i>
+              <span class="nav-text">Limbah Keluar</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('penanganan-khusus')" id="nav-penanganan-khusus" class="nav-item justify-between">
+              <div class="flex items-center gap-3.5">
+                <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i>
+                <span class="nav-text">Penanganan Khusus</span>
+              </div>
+              <span id="badgePendingPK" class="badge-pill bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-mono">0</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('inspeksi')" id="nav-inspeksi" class="nav-item">
+              <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+              <span class="nav-text">Inspeksi TPS K3L</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('logbook')" id="nav-logbook" class="nav-item">
+              <i data-lucide="book-open" class="w-4 h-4"></i>
+              <span class="nav-text">Logbook Permen LHK</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('neraca')" id="nav-neraca" class="nav-item justify-between">
+              <div class="flex items-center gap-3.5">
+                <i data-lucide="scale" class="w-4 h-4"></i>
+                <span class="nav-text">Neraca Limbah B3</span>
+              </div>
+              <span id="badgeNeracaDraft" class="badge-pill bg-sky-500/20 text-sky-300 text-[10px] px-2 py-0.5 rounded-full font-mono">3-TTD</span>
+            </a>
+          </nav>
         </div>
 
-        <div class="kpi-grid-4col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
-          <div class="kpi-card">
-            <div class="kpi-label" id="kpi-label-1">Sampling Hari Ini</div>
-            <div><span class="kpi-value" id="kpi-value-1">—</span><span class="kpi-unit">sampel</span></div>
-            <div class="kpi-sub" id="kpi-sub-1">Pemantauan aktif pada hari ini</div>
-            <div class="kpi-icon" style="background:var(--primary);"><i class="fa-solid fa-vials"></i></div>
-          </div>
-          <div class="kpi-card" id="kpi-card-2">
-            <div class="kpi-label" id="kpi-label-2">Pelanggaran Aktif</div>
-            <div><span class="kpi-value" id="kpi-value-2">—</span><span class="kpi-unit">insiden</span></div>
-            <div class="kpi-sub" id="kpi-sub-2">Membutuhkan tindak lanjut</div>
-            <div class="kpi-icon" style="background:var(--violation-text);"><i class="fa-solid fa-circle-exclamation"></i></div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label" id="kpi-label-3">Tertunda</div>
-            <div><span class="kpi-value" id="kpi-value-3">—</span><span class="kpi-unit">item</span></div>
-            <div class="kpi-sub" id="kpi-sub-3">Menunggu tindakan</div>
-            <div class="kpi-icon" style="background:var(--warning-text);"><i class="fa-solid fa-hourglass-half"></i></div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label" id="kpi-label-4">Compliance Rate</div>
-            <div><span class="kpi-value" id="kpi-value-4">—</span></div>
-            <div class="kpi-sub" id="kpi-sub-4">Tingkat kepatuhan baku mutu</div>
-            <div class="kpi-icon" style="background:var(--compliant-text);"><i class="fa-solid fa-shield-check"></i></div>
-          </div>
+        <!-- Section: MASTER & SETTINGS -->
+        <div>
+          <p class="px-5 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2 nav-text">Master & Konfigurasi</p>
+          <nav class="space-y-1">
+            <a href="javascript:void(0)" onclick="navigateTo('rintek')" id="nav-rintek" class="nav-item">
+              <i data-lucide="database" class="w-4 h-4"></i>
+              <span class="nav-text">Master Rintek B3</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('pihak-ketiga')" id="nav-pihak-ketiga" class="nav-item">
+              <i data-lucide="truck" class="w-4 h-4"></i>
+              <span class="nav-text">Pihak Ketiga (Transporter)</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('users')" id="nav-users" class="nav-item">
+              <i data-lucide="users" class="w-4 h-4"></i>
+              <span class="nav-text">Manajemen Pengguna</span>
+            </a>
+            <a href="javascript:void(0)" onclick="navigateTo('settings')" id="nav-settings" class="nav-item">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+              <span class="nav-text">Pengaturan TPS</span>
+            </a>
+          </nav>
         </div>
+      </div>
 
-        <div class="dash-chart-grid">
-          <div class="chart-card">
-            <div class="chart-card-title">
-              Tren pH & TSS (14 Hari Terakhir)
-              <span class="chart-sub">Rata-rata harian semua titik</span>
+      <!-- Sidebar Footer: Active User & Profil Pengguna Trigger -->
+      <div class="p-3 border-t border-vault-border">
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-slate-800">
+          <div onclick="openModalUserProfile()" class="flex items-center gap-2.5 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity" title="Klik untuk membuka Pengaturan Profil">
+            <div id="userAvatar" class="w-8 h-8 rounded-full bg-slate-800 text-sky-400 font-bold flex items-center justify-center shrink-0 text-xs border border-slate-700 overflow-hidden">
+              OP
             </div>
-            <div class="chart-wrap h-220"><canvas id="chart-trend"></canvas></div>
+            <div class="sidebar-footer-content leading-tight truncate">
+              <p id="userNameDisplay" class="text-xs font-semibold text-white truncate">Operator Lapangan</p>
+              <span id="userRoleBadge" class="text-[10px] text-vault-lime font-mono">Operator</span>
+            </div>
           </div>
-          <div class="chart-card" style="display:flex;flex-direction:column;justify-content:center;">
-            <div class="chart-card-title">Compliance Rate Bulan Ini</div>
-            <div class="chart-wrap h-200 donut-wrapper"><canvas id="chart-compliance-donut"></canvas></div>
-          </div>
-        </div>
-
-        <div class="chart-card" style="margin-bottom:var(--sp-lg);">
-          <div class="chart-card-title">
-            Compliance Rate per Settling Pond
-            <span class="chart-sub">Hijau ≥80% · Kuning ≥60% · Merah &lt;60%</span>
-          </div>
-          <div class="chart-wrap h-160"><canvas id="chart-pond-compliance"></canvas></div>
-        </div>
-
-        <div class="card-panel">
-          <div class="card-panel-header">
-            <span class="card-panel-title"><i class="fa-solid fa-circle-radiation me-1" style="color:var(--violation-text);"></i>Pelanggaran Baku Mutu Aktif</span>
-            <button class="btn btn-outline btn-sm" onclick="navigateTo('disposisi-investigasi')"><i class="fa-solid fa-arrow-right me-1"></i>Kelola Disposisi</button>
-          </div>
-          <div id="anomaly-alert-list"></div>
-        </div>
-
-        <div id="panel-operator-cta" class="card-panel hidden" style="border-color:var(--compliant-border);background:var(--compliant-bg);">
-          <div class="card-panel-header">
-            <span class="card-panel-title" style="color:var(--compliant-text);"><i class="fa-solid fa-circle-check me-1"></i>Siap Input Sampling?</span>
-          </div>
-          <p style="font-size:13px;color:var(--compliant-text);margin:0 0 .75rem;">Mulai input data pemantauan lapangan hari ini.</p>
-          <button class="btn btn-primary" onclick="navigateTo('form-harian')"><i class="fa-solid fa-flask-vial me-1"></i>Buka Form Lapangan</button>
-        </div>
-
-        <div id="panel-operator-riwayat" class="card-panel hidden">
-          <div class="card-panel-header">
-            <span class="card-panel-title">Sampling Saya Hari Ini</span>
-          </div>
-          <div class="table-outer"><div class="table-scroll">
-            <table class="table-mine"><thead><tr><th>Jam</th><th>Pond</th><th>Aliran</th><th>Status</th></tr></thead>
-            <tbody id="operator-riwayat-body"><tr><td colspan="4" class="text-center text-muted" style="padding:1.5rem;">Belum ada input hari ini.</td></tr></tbody></table>
-          </div></div>
-        </div>
-
-        <div id="panel-ktt-approval" class="card-panel hidden">
-          <div class="card-panel-header">
-            <span class="card-panel-title"><i class="fa-solid fa-file-signature me-1" style="color:var(--info);"></i>Menunggu Persetujuan KTT</span>
-            <button class="btn btn-outline btn-sm" onclick="refreshDashboard()"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
-          </div>
-          <div class="table-outer"><div class="table-scroll">
-            <table class="table-mine"><thead><tr><th>ID</th><th>Pond</th><th>pH</th><th>TSS</th><th>Diperiksa SPV</th><th>Aksi</th></tr></thead>
-            <tbody id="ktt-approval-body"><tr><td colspan="6" class="text-center text-muted" style="padding:1.5rem;">Tidak ada item tertunda.</td></tr></tbody></table>
-          </div></div>
+          <button onclick="handleLogout()" title="Keluar dari sistem" class="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg hover:bg-slate-800">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
         </div>
       </div>
+    </aside>
 
-      <!-- ══════════ FORM HARIAN ══════════ -->
-      <div id="view-form-harian" class="view-container hidden">
-        <div class="breadcrumb-row">Input Data</div>
-        <h1 class="page-title">Form Pemantauan Lapangan</h1>
-        <p class="page-subtitle">Input hasil pengukuran parameter kualitas air outlet settling pond dan titik pembuangan.</p>
+    <!-- 2.2 MAIN CONTENT AREA -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        <div id="fh-anomaly-banner" class="hidden" style="background:var(--violation-bg);border:1px solid var(--violation-border);border-radius:var(--r-lg);padding:.75rem 1rem;margin-bottom:var(--sp-lg);display:flex;align-items:center;gap:.5rem;color:var(--violation-text);font-weight:700;font-size:13px;">
-          <i class="fa-solid fa-triangle-exclamation"></i> Nilai melebihi baku mutu! Periksa kembali data atau segera buat Disposisi Investigasi.
+      <!-- TOPBAR (Tombol catat limbah di pojok kanan dihapus sesuai revisi #6) -->
+      <header class="topbar">
+        <!-- Left: Search / TPS Info -->
+        <div class="flex items-center gap-4">
+          <div class="relative hidden md:block w-72">
+            <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="globalSearchInput" onkeyup="handleGlobalSearch(event)" placeholder="Cari limbah, kode, manifes... (Ctrl+K)" 
+                   class="w-full bg-slate-900/80 border border-slate-800 rounded-full pl-9 pr-4 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500">
+          </div>
+          <div class="flex items-center gap-2 text-xs font-medium bg-slate-900/70 border border-slate-800/80 px-3 py-1.5 rounded-full">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-slate-300">TPS LB3 01:</span>
+            <span id="topbarLocationDisplay" class="text-vault-lime font-mono">Batuah, Kutai Kartanegara</span>
+          </div>
         </div>
 
-        <form id="form-harian" novalidate>
-          <div class="form-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
-            <div>
-              <div class="card-panel">
-                <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-location-dot me-1"></i>Lokasi & Waktu</span></div>
-                <div class="form-row">
-                  <label class="form-label">Settling Pond *</label>
-                  <select id="fh-pond" class="form-control" required><option value="">— Pilih Settling Pond —</option></select>
-                </div>
-                <div class="form-row">
-                  <label class="form-label">Titik Aliran *</label>
-                  <div class="flow-toggle">
-                    <button type="button" class="flow-btn active" data-val="OUTLET">OUTLET</button>
-                    <button type="button" class="flow-btn" data-val="INLET">INLET</button>
-                  </div>
-                </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;" class="form-row">
-                  <div>
-                    <label class="form-label">Tanggal *</label>
-                    <input type="date" id="fh-tanggal" class="form-control" required>
-                  </div>
-                  <div>
-                    <label class="form-label">Jam Sampling *</label>
-                    <input type="time" id="fh-jam" class="form-control" required>
-                  </div>
-                </div>
-                <div class="form-row">
-                  <label class="form-label">Koordinat Manual</label>
-                  <input type="text" id="fh-koord-manual" class="form-control form-control-mono" placeholder="-0.494820, 117.143210">
-                </div>
-                <div class="form-row">
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;">
-                    <label class="form-label" style="margin:0;">Koordinat GPS</label>
-                    <button type="button" class="btn btn-sm btn-outline" id="btn-gps"><i class="fa-solid fa-location-crosshairs me-1"></i>Ambil GPS</button>
-                  </div>
-                  <input type="text" id="fh-koord-gps" class="form-control form-control-mono" placeholder="Tekan 'Ambil GPS'…" readonly>
-                  <div id="gps-indicator" class="gps-status-indicator hidden" style="margin-top:.4rem;"></div>
+        <!-- Right: Backend Status, Notification & Profile Avatar -->
+        <div class="flex items-center gap-3">
+          <!-- Backend Connection Badge -->
+          <div id="backendStatusBadge" onclick="openGasSettingsModal()" title="Klik untuk konfigurasi Google Apps Script URL"
+               class="cursor-pointer text-[11px] font-mono px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-sky-400 flex items-center gap-1.5 hover:border-sky-400">
+            <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+            <span id="backendStatusText">GAS Mode: Standby</span>
+          </div>
+
+          <!-- Notification Bell -->
+          <div class="relative">
+            <button onclick="toggleNotificationPopover()" class="relative p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-800/80">
+              <i data-lucide="bell" class="w-4 h-4"></i>
+              <span id="unreadNotifDot" class="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 hidden"></span>
+            </button>
+            <!-- Popover Notifications -->
+            <div id="notifPopover" class="hidden absolute right-0 mt-2 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-4 z-50">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                <span class="text-xs font-bold text-white">Notifikasi Sistem</span>
+                <span class="text-[10px] text-slate-400">Real-time</span>
+              </div>
+              <div id="notifListContainer" class="mt-3 space-y-2 max-h-64 overflow-y-auto">
+                <p class="text-xs text-slate-500 text-center py-3">Tidak ada notifikasi baru.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Profile Trigger Icon Button -->
+          <button onclick="openModalUserProfile()" title="Buka Profil Pengguna" class="p-1.5 rounded-full hover:bg-slate-800 text-slate-300 hover:text-white">
+            <i data-lucide="user-cog" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- MAIN VIEW ROUTER CONTAINER -->
+      <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- ================================================================
+             VIEW 1: DASHBOARD (VAULT DESIGN STYLE)
+             ================================================================ -->
+        <section id="view-dashboard" class="space-y-6">
+
+          <!-- Welcome Banner / Compliance Alert -->
+          <div id="complianceAlertBanner" class="hidden p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3.5">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+            <div class="flex-1">
+              <h4 class="text-sm font-bold text-amber-300">Peringatan Kepatuhan Masa Simpan (H-7 Alert)</h4>
+              <p id="complianceAlertText" class="text-xs text-amber-200/90 mt-0.5">
+                Terdapat limbah B3 yang mendekati batas maksimal penyimpanan (90/180/365 hari) sesuai Permen LHK No. 6/2021.
+              </p>
+            </div>
+            <button onclick="navigateTo('masuk')" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-200 hover:bg-amber-500/30">
+              Lihat Detail
+            </button>
+          </div>
+
+          <!-- KPI STAT CARDS (4 Main Metrics in Vault Style) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Card 1: Total Stok TPS -->
+            <div class="kpi-card kpi-card-dark">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Stok TPS</span>
+                <div class="kpi-icon-badge bg-vault-lime/10 text-vault-lime">
+                  <i data-lucide="boxes" class="w-5 h-5"></i>
                 </div>
               </div>
+              <div class="mt-4">
+                <div class="flex items-baseline gap-2">
+                  <h3 id="statTotalStokKg" class="text-2xl sm:text-3xl font-extrabold text-white">0</h3>
+                  <span class="text-xs text-slate-400 font-mono">Kg</span>
+                </div>
+                <p id="statTotalStokTon" class="text-xs text-vault-lime font-medium mt-1">≈ 0.00 Ton</p>
+              </div>
+            </div>
 
-              <div class="card-panel">
-                <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-droplet me-1"></i>Data Hidrologi</span></div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
-                  <div class="form-row">
-                    <label class="form-label">Debit Air (m³/jam)</label>
-                    <input type="number" id="fh-debit" class="form-control form-control-mono" step="0.01" min="0" placeholder="0.00">
-                  </div>
-                  <div class="form-row">
-                    <label class="form-label">Curah Hujan (mm)</label>
-                    <input type="number" id="fh-hujan" class="form-control form-control-mono" step="0.1" min="0" placeholder="0.0">
-                  </div>
+            <!-- Card 2: Kapasitas TPS LB3 -->
+            <div class="kpi-card kpi-card-dark">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Kapasitas TPS (<span id="statCapTonLabel">20</span> Ton)</span>
+                <div class="kpi-icon-badge bg-sky-500/10 text-sky-400">
+                  <i data-lucide="gauge" class="w-5 h-5"></i>
                 </div>
               </div>
-
-              <div class="card-panel">
-                <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-camera me-1"></i>Dokumentasi Foto</span></div>
-                <p style="font-size:12px;color:var(--text-muted);margin-bottom:.75rem;">Maksimal 5 foto · JPEG/PNG · Foto otomatis dikompres sebelum upload</p>
-                <input type="file" id="fh-photo-input" accept="image/*" multiple style="display:none;">
-                <div class="preview-gallery" id="photo-gallery">
-                  <label class="photo-add-btn"><i class="fa-solid fa-plus" style="font-size:20px;"></i><span>Tambah Foto</span></label>
+              <div class="mt-4">
+                <div class="flex items-baseline justify-between mb-1.5">
+                  <h3 id="statPersenKapasitas" class="text-2xl sm:text-3xl font-extrabold text-white">0%</h3>
+                  <span id="statKapasitasStatus" class="badge-status badge-green">Aman</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                  <div id="statProgressBar" class="bg-vault-lime h-full rounded-full transition-all duration-500" style="width: 0%"></div>
                 </div>
               </div>
             </div>
 
-            <div>
-              <div class="card-panel">
-                <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-chart-bar me-1"></i>Pengukuran Parameter Kualitas Air</span></div>
-                <div class="sensor-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
-                  <div class="sensor-card" id="sensor-card-ph">
-                    <div class="sensor-label">pH<span class="badge badge-compliant" id="sensor-badge-ph">COMPLIANT</span></div>
-                    <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-ph" data-param="PH" step="0.01" min="0" max="14" placeholder="7.50" required><span class="sensor-unit">—</span></div>
-                    <div class="sensor-threshold" id="sensor-threshold-ph">Baku Mutu: 6.0 – 9.0</div>
-                  </div>
-                  <div class="sensor-card" id="sensor-card-tss">
-                    <div class="sensor-label">TSS<span class="badge badge-compliant" id="sensor-badge-tss">COMPLIANT</span></div>
-                    <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-tss" data-param="TSS" step="0.1" min="0" placeholder="0.0" required><span class="sensor-unit">mg/L</span></div>
-                    <div class="sensor-threshold" id="sensor-threshold-tss">Baku Mutu: 0 – 200</div>
-                  </div>
-                  <div class="sensor-card" id="sensor-card-fe">
-                    <div class="sensor-label">Fe Total<span class="badge badge-compliant" id="sensor-badge-fe">COMPLIANT</span></div>
-                    <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-fe" data-param="FE" step="0.001" min="0" placeholder="0.000" required><span class="sensor-unit">mg/L</span></div>
-                    <div class="sensor-threshold" id="sensor-threshold-fe">Baku Mutu: 0 – 7.0</div>
-                  </div>
-                  <div class="sensor-card" id="sensor-card-mn">
-                    <div class="sensor-label">Mn Total<span class="badge badge-compliant" id="sensor-badge-mn">COMPLIANT</span></div>
-                    <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-mn" data-param="MN" step="0.001" min="0" placeholder="0.000" required><span class="sensor-unit">mg/L</span></div>
-                    <div class="sensor-threshold" id="sensor-threshold-mn">Baku Mutu: 0 – 4.0</div>
-                  </div>
-                </div>
-                <div style="margin-top:.75rem;padding:.65rem;background:var(--surface-alt);border-radius:var(--r-sm);font-size:11px;color:var(--text-muted);">
-                  Baku mutu mengacu pada Kepmen LH No. 113/2003 & Perda Kaltim No. 02/2011. Nilai di luar rentang akan otomatis ditandai pelanggaran.
+            <!-- Card 3: Mendekati Jatuh Tempo (H-7) -->
+            <div class="kpi-card kpi-card-dark">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Masa Simpan H-7</span>
+                <div class="kpi-icon-badge bg-amber-500/10 text-amber-400">
+                  <i data-lucide="clock" class="w-5 h-5"></i>
                 </div>
               </div>
-              <div style="margin-top:var(--sp-lg);">
-                <button type="submit" class="btn btn-primary" style="width:100%;padding:.75rem;font-size:14px;"><i class="fa-solid fa-paper-plane me-1"></i>Simpan & Kirim Data Pemantauan</button>
-                <button type="button" class="btn btn-outline" style="width:100%;margin-top:.5rem;" onclick="document.getElementById('form-harian').reset();AppState.photos=[];renderPhotoGallery();prefillFormHarian();"><i class="fa-solid fa-rotate-left me-1"></i>Reset Form</button>
+              <div class="mt-4">
+                <div class="flex items-baseline gap-2">
+                  <h3 id="statAlertH7Count" class="text-2xl sm:text-3xl font-extrabold text-amber-400">0</h3>
+                  <span class="text-xs text-slate-400">Item Limbah</span>
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Batas 90 / 180 / 365 Hari</p>
               </div>
             </div>
-          </div>
-        </form>
-      </div>
 
-      <!-- ══════════ LEDGER LOG ══════════ -->
-      <div id="view-log-table" class="view-container hidden">
-        <div class="breadcrumb-row">Data</div>
-        <h1 class="page-title">Ledger Log Harian</h1>
-        <p class="page-subtitle">Riwayat lengkap seluruh data pemantauan lapangan dengan validasi berjenjang SPV → KTT.</p>
-        <div class="card-panel">
-          <div class="card-panel-header">
-            <span class="card-panel-title">Filter Data</span>
-            <button class="btn btn-primary btn-sm" id="btn-refresh-ledger"><i class="fa-solid fa-rotate me-1"></i>Refresh Tabel</button>
+            <!-- Card 4: Pending Approval Neraca & PK -->
+            <div class="kpi-card kpi-card-dark">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-400 uppercase tracking-wider">Pending Persetujuan</span>
+                <div class="kpi-icon-badge bg-purple-500/10 text-purple-400">
+                  <i data-lucide="file-signature" class="w-5 h-5"></i>
+                </div>
+              </div>
+              <div class="mt-4">
+                <div class="flex items-baseline gap-2">
+                  <h3 id="statPendingApproval" class="text-2xl sm:text-3xl font-extrabold text-purple-300">0</h3>
+                  <span class="text-xs text-slate-400">Dokumen</span>
+                </div>
+                <p class="text-xs text-purple-300/80 mt-1">Penanganan Khusus & Neraca</p>
+              </div>
+            </div>
+
           </div>
-          <div class="kpi-grid-4col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;">
-            <div><label class="form-label">Dari Tanggal</label><input type="date" id="filter-start" class="form-control"></div>
-            <div><label class="form-label">Sampai Tanggal</label><input type="date" id="filter-end" class="form-control"></div>
-            <div><label class="form-label">Settling Pond</label>
-              <select id="filter-pond" class="form-control"><option value="">Semua Pond</option></select></div>
-            <div><label class="form-label">Status Mutu</label>
-              <select id="filter-status" class="form-control"><option value="">Semua Status</option><option value="NORMAL">NORMAL</option><option value="MELEBIHI BAKU MUTU">MELEBIHI BAKU MUTU</option></select></div>
+
+          <!-- Mid Section: Chart & Tag Inventory (Vault Style) -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Chart: Tren Timbulan Limbah B3 -->
+            <div class="data-card lg:col-span-2">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="text-base font-bold text-white">Tren Timbulan & Pengeluaran Limbah B3</h3>
+                  <p class="text-xs text-slate-400">Pencatatan real-time TPS LB3 01 (Kg/Bulan)</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="flex items-center gap-1 text-[11px] text-slate-300">
+                    <span class="w-2.5 h-2.5 rounded-full bg-vault-lime"></span> Masuk
+                  </span>
+                  <span class="flex items-center gap-1 text-[11px] text-slate-300">
+                    <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span> Diserahkan (Out)
+                  </span>
+                </div>
+              </div>
+              <div class="h-64 sm:h-72 w-full">
+                <canvas id="timbulanChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Inventory Breakdown by Category -->
+            <div class="data-card flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-base font-bold text-white">Stok Kategori Rintek</h3>
+                  <span id="dashRintekCountBadge" class="text-xs font-mono text-vault-lime">9 Terdaftar</span>
+                </div>
+                <p class="text-xs text-slate-400 mb-4">Distribusi fisik limbah B3 di dalam TPS 01.</p>
+                
+                <div id="stokKategoriList" class="space-y-3 max-h-56 overflow-y-auto pr-1">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+
+              <div class="mt-4 pt-4 border-t border-vault-border">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-slate-400">Kepatuhan Rintek:</span>
+                  <span class="text-emerald-400 font-bold flex items-center gap-1">
+                    <i data-lucide="check-check" class="w-3.5 h-3.5"></i> 100% Valid
+                  </span>
+                </div>
+              </div>
+            </div>
+
           </div>
-        </div>
-        <div class="card-panel" style="padding:0;">
-          <div class="card-panel-header" style="padding:var(--sp-lg) var(--sp-lg) 0;">
-            <span class="card-panel-title">Rekam Data</span>
-          </div>
-          <div id="ledger-audit-strip" class="audit-strip" style="margin:.5rem var(--sp-lg) .5rem;">Memuat data…</div>
-          <div class="table-outer" style="border-radius:0;border-left:0;border-right:0;border-bottom:0;">
-            <div class="table-scroll">
-              <table class="table-mine">
+
+          <!-- Bottom: Recent Transactions Table -->
+          <div class="data-card">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-base font-bold text-white">Transaksi Limbah Terkini</h3>
+                <p class="text-xs text-slate-400">5 Pencatatan masuk dan keluar terakhir</p>
+              </div>
+              <button onclick="navigateTo('logbook')" class="text-xs text-sky-400 hover:underline flex items-center gap-1">
+                Buka Seluruh Logbook <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-vault-border">
+              <table class="custom-table">
                 <thead>
                   <tr>
-                    <th>Log ID</th><th>Tanggal & Jam</th><th>Pond</th><th>Aliran</th>
-                    <th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th>
-                    <th>Status Mutu</th><th>Validasi</th><th>Aksi</th>
+                    <th>ID / Waktu</th>
+                    <th>Kode & Nama Limbah</th>
+                    <th>Jumlah</th>
+                    <th>Status Rintek</th>
+                    <th>Status Stok</th>
+                    <th>Operator</th>
                   </tr>
                 </thead>
-                <tbody id="log-table-body">
-                  <tr><td colspan="11" class="text-center text-muted" style="padding:3rem;">Klik Refresh Tabel atau pindah ke tab lain lalu kembali untuk memuat data.</td></tr>
+                <tbody id="dashboardRecentTableBody">
+                  <!-- Populated by JS -->
                 </tbody>
               </table>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- ══════════ DISPOSISI & INVESTIGASI ══════════ -->
-      <div id="view-disposisi-investigasi" class="view-container hidden">
-        <div class="breadcrumb-row">Monitoring</div>
-        <h1 class="page-title">Disposisi & Investigasi Insiden</h1>
-        <p class="page-subtitle">Kelola tindak lanjut pelanggaran baku mutu secara berjenjang hingga penyelesaian.</p>
-        <div class="disp-kpi-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
-          <div class="kpi-card"><div class="kpi-label">Terbuka</div><div><span class="kpi-value" id="disp-kpi-open">—</span></div></div>
-          <div class="kpi-card"><div class="kpi-label">Dalam Proses</div><div><span class="kpi-value" id="disp-kpi-progress">—</span></div></div>
-          <div class="kpi-card"><div class="kpi-label">Diselesaikan</div><div><span class="kpi-value" id="disp-kpi-resolved">—</span></div></div>
-        </div>
-        <div class="card-panel-header" style="margin-bottom:.75rem;">
-          <span class="card-panel-title"><i class="fa-solid fa-list-check me-1"></i>Daftar Insiden</span>
-          <button class="btn btn-sm btn-outline" id="btn-refresh-disposisi"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
-        </div>
-        <div id="disposisi-list"><p class="text-muted">Memuat…</p></div>
-      </div>
+        </section>
 
-      <!-- ══════════ LABORATORIUM ══════════ -->
-      <div id="view-lab" class="view-container hidden">
-        <div class="breadcrumb-row">Monitoring</div>
-        <h1 class="page-title">Hasil Uji Laboratorium</h1>
-        <p class="page-subtitle">Upload dan kelola sertifikat hasil uji laboratorium eksternal per periode bulanan.</p>
-        <div class="lab-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
-          <div class="card-panel">
-            <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-file-arrow-up me-1"></i>Input Hasil Lab Baru</span></div>
-            <form id="form-lab" novalidate>
-              <div class="form-row"><label class="form-label">Bulan Periode *</label><input type="month" id="lab-periode" class="form-control" required></div>
-              <div class="form-row"><label class="form-label">Settling Pond *</label><select id="lab-pond" class="form-control"><option value="">— Pilih Pond —</option></select></div>
-              <div class="form-row"><label class="form-label">Titik Aliran</label><input type="text" id="lab-aliran" class="form-control" placeholder="OUTLET" value="OUTLET"></div>
-              <div class="form-row"><label class="form-label">Nama Laboratorium *</label><input type="text" id="lab-nama" class="form-control" placeholder="PT Sucofindo / Baristand / dll" required></div>
-              <div class="form-row"><label class="form-label">Nomor Sertifikat *</label><input type="text" id="lab-sertifikat" class="form-control form-control-mono" placeholder="LAB/2024/001" required></div>
-              <div class="form-row"><label class="form-label">Tanggal Analisis *</label><input type="date" id="lab-tanggal" class="form-control" required></div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem;">
-                <div><label class="form-label">pH</label><input type="number" id="lab-ph" class="form-control form-control-mono" step="0.01" placeholder="7.50"></div>
-                <div><label class="form-label">TSS (mg/L)</label><input type="number" id="lab-tss" class="form-control form-control-mono" step="0.1" placeholder="0.0"></div>
-                <div><label class="form-label">Fe (mg/L)</label><input type="number" id="lab-fe" class="form-control form-control-mono" step="0.001" placeholder="0.000"></div>
-                <div><label class="form-label">Mn (mg/L)</label><input type="number" id="lab-mn" class="form-control form-control-mono" step="0.001" placeholder="0.000"></div>
-              </div>
-              <div class="form-row"><label class="form-label">Upload Sertifikat PDF (maks 8MB)</label><input type="file" id="lab-pdf" accept="application/pdf" class="form-control" style="height:auto;padding:.4rem .7rem;"></div>
-              <button type="submit" class="btn btn-primary" style="width:100%;"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Hasil Lab</button>
-            </form>
-          </div>
-          <div class="card-panel" style="padding:0;">
-            <div class="card-panel-header" style="padding:var(--sp-lg);">
-              <span class="card-panel-title">Riwayat Hasil Lab</span>
-              <button class="btn btn-sm btn-outline" id="btn-refresh-lab"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+        <!-- ================================================================
+             VIEW 2: LIMBAH MASUK (DENGAN FILTER & REFRESH)
+             ================================================================ -->
+        <section id="view-masuk" class="space-y-5 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-white">Pencatatan Limbah Masuk (TPS LB3 01)</h2>
+              <p class="text-xs text-slate-400">Validasi otomatis terhadap Rincian Teknis & kalkulasi batas masa simpan</p>
             </div>
-            <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
-              <div class="table-scroll">
-                <table class="table-mine">
-                  <thead><tr><th>Periode</th><th>Pond</th><th>Laboratorium</th><th>No. Sertifikat</th><th>pH</th><th>TSS</th><th>PDF</th><th>Aksi</th></tr></thead>
-                  <tbody id="lab-table-body"><tr><td colspan="8" class="text-center text-muted" style="padding:2rem;">Belum ada data lab.</td></tr></tbody>
-                </table>
+            <div class="flex items-center gap-2">
+              <button onclick="refreshLimbahMasuk()" class="role-quick-btn flex items-center gap-1.5" title="Refresh Data Masuk">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> <span>Refresh</span>
+              </button>
+              <button onclick="openModalLimbahMasuk()" class="btn-lime-pill">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Input Limbah Masuk</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Baris Filter Limbah Masuk -->
+          <div class="filter-bar">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <input type="text" id="filterMasukSearch" onkeyup="applyFilterLimbahMasuk()" placeholder="Cari limbah / ID..." class="filter-input w-44">
+              
+              <select id="filterMasukRintek" onchange="applyFilterLimbahMasuk()" class="filter-input">
+                <option value="">Semua Jenis Limbah</option>
+                <!-- Populated by JS -->
+              </select>
+
+              <select id="filterMasukStok" onchange="applyFilterLimbahMasuk()" class="filter-input">
+                <option value="">Semua Status Stok</option>
+                <option value="Tersedia">Tersedia di TPS</option>
+                <option value="Keluar">Sudah Keluar</option>
+              </select>
+
+              <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                <span>Dari:</span>
+                <input type="date" id="filterMasukTglDari" onchange="applyFilterLimbahMasuk()" class="filter-input !py-1">
+                <span>S/d:</span>
+                <input type="date" id="filterMasukTglSampai" onchange="applyFilterLimbahMasuk()" class="filter-input !py-1">
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      <!-- ══════════ LAPORAN ══════════ -->
-      <div id="view-laporan" class="view-container hidden">
-        <div class="breadcrumb-row">Pelaporan Resmi</div>
-        <h1 class="page-title">Laporan Resmi Pemantauan</h1>
-        <p class="page-subtitle">Generate laporan harian/bulanan, kirim ke supervisor untuk review & tanda tangan, lalu teruskan ke KTT.</p>
-        <div class="card-panel">
-          <div class="card-panel-header">
-            <span class="card-panel-title">Filter Data Laporan</span>
-            <button class="btn btn-sm btn-outline" id="btn-refresh-report"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
-          </div>
-          <div id="rep-operator-note" class="hidden" style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:var(--r-sm);padding:.6rem .9rem;font-size:12px;color:var(--warning-text);margin-bottom:1rem;">
-            <i class="fa-solid fa-info-circle me-1"></i>Sebagai Operator, Anda dapat generate dan mengirim laporan ke Supervisor untuk direview.
-          </div>
-          <div class="kpi-grid-4col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:.75rem;">
-            <div><label class="form-label">Dari Tanggal</label><input type="date" id="rep-start" class="form-control"></div>
-            <div><label class="form-label">Sampai Tanggal</label><input type="date" id="rep-end" class="form-control"></div>
-            <div><label class="form-label">Settling Pond</label><select id="rep-pond" class="form-control"><option value="">Semua Pond</option></select></div>
-            <div><label class="form-label">Titik Aliran</label><input type="text" id="rep-aliran" class="form-control" placeholder="OUTLET (opsional)"></div>
-          </div>
-          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-            <button class="btn btn-primary" id="btn-rep-filter"><i class="fa-solid fa-magnifying-glass me-1"></i>Tampilkan Data</button>
-            <button class="btn btn-outline" id="btn-open-report-modal"><i class="fa-solid fa-file-contract me-1"></i>Buat & Kirim Laporan</button>
-          </div>
-        </div>
-        <div class="card-panel spv-manajemen-only" style="padding:0;">
-          <div class="card-panel-header" style="padding:var(--sp-lg);">
-            <span class="card-panel-title">Data Hasil Pemantauan (Pilih baris untuk Laporan Harian)</span>
-          </div>
-          <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
-            <div class="table-scroll">
-              <table class="table-mine">
-                <thead><tr><th>Pilih</th><th>Tanggal</th><th>Pond</th><th>Aliran</th><th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th><th>Status</th></tr></thead>
-                <tbody id="rep-table-body"><tr><td colspan="9" class="text-center text-muted" style="padding:2rem;">Filter & tampilkan data terlebih dahulu.</td></tr></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        <div class="card-panel laporan-status-list">
-          <div class="card-panel-header">
-            <span class="card-panel-title"><i class="fa-solid fa-timeline me-1"></i>Status Laporan Terkirim</span>
-            <button class="btn btn-sm btn-outline" onclick="refreshLaporanList()"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
-          </div>
-          <div class="table-outer"><div class="table-scroll">
-            <table class="table-mine">
-              <thead><tr><th>Report ID</th><th>Tipe</th><th>Nomor Sampel</th><th>Status</th><th>Diperiksa SPV</th><th>Aksi</th></tr></thead>
-              <tbody id="laporan-list-body"><tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">Belum ada laporan dikirim.</td></tr></tbody>
-            </table>
-          </div></div>
-        </div>
-      </div>
-
-      <!-- ══════════ MASTER DATA ══════════ -->
-      <div id="view-master" class="view-container hidden">
-        <div class="breadcrumb-row">Administrasi</div>
-        <h1 class="page-title">Master Data</h1>
-        <p class="page-subtitle">Kelola titik settling pond dan parameter baku mutu yang digunakan sebagai acuan validasi otomatis.</p>
-        <div class="master-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
-          <div class="card-panel" style="padding:0;">
-            <div class="card-panel-header" style="padding:var(--sp-lg);">
-              <span class="card-panel-title">Titik Settling Pond</span>
-              <div style="display:flex;gap:.5rem;">
-                <button class="btn btn-primary btn-sm" id="btn-add-pond"><i class="fa-solid fa-plus me-1"></i>Tambah Pond</button>
-                <button class="btn btn-outline btn-sm" id="btn-refresh-master"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
-              </div>
-            </div>
-            <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
-              <div class="table-scroll">
-                <table class="table-mine">
-                  <thead><tr><th>Pond ID</th><th>Nama</th><th>Blok Area</th><th>Lat</th><th>Lng</th><th>Status</th><th>Aksi</th></tr></thead>
-                  <tbody id="master-pond-body"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          <div class="card-panel" style="padding:0;">
-            <div class="card-panel-header" style="padding:var(--sp-lg);">
-              <span class="card-panel-title">Parameter Baku Mutu</span>
-            </div>
-            <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
-              <div class="table-scroll">
-                <table class="table-mine">
-                  <thead><tr><th>Kode</th><th>Parameter</th><th>Min</th><th>Maks</th><th>Edit</th></tr></thead>
-                  <tbody id="master-bakumutu-body"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══════════ SETTINGS ══════════ -->
-      <div id="view-settings" class="view-container hidden">
-        <div class="breadcrumb-row">Administrasi</div>
-        <h1 class="page-title">Pengaturan Sistem</h1>
-        <p class="page-subtitle">Konfigurasi kop surat, identitas perusahaan, dan manajemen akun pengguna.</p>
-        <div class="master-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
-          <div>
-            <div class="card-panel">
-              <div class="card-panel-header"><span class="card-panel-title">Identitas Perusahaan & Kop Surat</span></div>
-              <form id="form-settings" novalidate>
-                <div class="form-row"><label class="form-label">Nama Perusahaan</label><input type="text" id="set-company" class="form-control"></div>
-                <div class="form-row"><label class="form-label">Nama Aplikasi</label><input type="text" id="set-appname" class="form-control"></div>
-                <div class="form-row"><label class="form-label">Nama Site / Region</label><input type="text" id="set-region" class="form-control"></div>
-                <div class="form-row"><label class="form-label">Alamat Perusahaan</label><input type="text" id="set-address" class="form-control"></div>
-                <div class="form-row"><label class="form-label">Nomor IUP / Izin</label><input type="text" id="set-license" class="form-control"></div>
-                <div class="form-row"><label class="form-label">Telepon / Email Kontak</label><input type="text" id="set-phone" class="form-control"></div>
-                <div class="form-row"><label class="form-label">Warna Tema Utama</label><input type="color" id="set-primary" class="form-control" style="height:36px;padding:2px 6px;"></div>
-                <div class="form-row"><label class="form-label">Logo Perusahaan (PNG/JPG)</label><input type="file" id="set-logo" accept="image/*" class="form-control" style="height:auto;padding:.4rem .7rem;"></div>
-                <div class="form-row">
-                  <label class="form-label">Gambar Latar Halaman Login</label>
-                  <div style="display:flex;gap:.5rem;margin-bottom:.35rem;">
-                    <input type="file" id="set-login-bg-file" accept="image/*" class="form-control" style="height:auto;padding:.35rem .6rem;">
-                  </div>
-                  <input type="text" id="set-login-bg" class="form-control" placeholder="Atau paste URL gambar: https://... atau link Google Drive">
-                  <div style="font-size:10.5px;color:var(--text-muted);margin-top:.25rem;">Bisa upload file langsung, link gambar HTTPS, atau link sharing Google Drive.</div>
-                </div>
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Pengaturan</button>
-              </form>
-            </div>
-          </div>
-          <div>
-            <div class="card-panel" style="padding:0;">
-              <div class="card-panel-header" style="padding:var(--sp-lg);">
-                <span class="card-panel-title">Manajemen Pengguna</span>
-                <button class="btn btn-primary btn-sm" id="btn-add-user"><i class="fa-solid fa-user-plus me-1"></i>Tambah Pengguna</button>
-              </div>
-              <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
-                <div class="table-scroll">
-                  <table class="table-mine">
-                    <thead><tr><th>Username</th><th>Nama Lengkap</th><th>Role</th><th>Status</th><th>Edit</th></tr></thead>
-                    <tbody id="user-table-body"></tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-            <div class="card-panel" style="margin-top:var(--sp-lg);">
-              <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-circle-info me-1"></i>Info Sistem</span></div>
-              <div style="font-size:12px;color:var(--text-secondary);display:grid;gap:.4rem;">
-                <div><b>Versi Aplikasi:</b> 2.1.0</div>
-                <div><b>Stack:</b> Google Apps Script · Google Sheets · Drive</div>
-                <div><b>Standar Acuan:</b> Kepmen LH No. 113/2003 · Perda Kaltim No. 02/2011</div>
-                <div><b>Refresh Notifikasi:</b> Setiap 30 detik</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="btn-refresh-users-wrap" style="display:none;"><button id="btn-refresh-users"></button></div>
-      </div>
-
-    </main>
-  </div>
-
-  <!-- BOTTOM NAV (Mobile) -->
-  <nav class="bottom-nav no-print">
-    <div class="bottom-nav-item active" data-view="dashboard" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-gauge-high"></i>Dashboard</div>
-    <div class="bottom-nav-item" data-view="form-harian" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-flask-vial"></i>Input</div>
-    <div class="bottom-nav-item" data-view="log-table" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-table-list"></i>Log</div>
-    <div class="bottom-nav-item" data-view="laporan" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-file-lines"></i>Laporan</div>
-    <div class="bottom-nav-item" id="btn-bottom-menu" role="button" title="Buka Menu Lengkap"><i class="fa-solid fa-bars"></i>Menu</div>
-  </nav>
-</div>
-
-<!-- ═══════════════════ MODALS ═══════════════════ -->
-
-<!-- Modal Tanda Tangan -->
-<div class="modal-backdrop" id="modal-signature">
-  <div class="modal-box">
-    <div class="modal-header">
-      <h5><i class="fa-solid fa-signature me-1"></i>Tanda Tangan Digital Saya</h5>
-      <button class="btn btn-sm btn-outline" id="cancel-modal-signature"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:12px;color:var(--text-muted);margin-bottom:.75rem;">Gambar tanda tangan menggunakan mouse atau jari. Tanda tangan akan tertanam otomatis di dokumen cetak.</p>
-      <div id="sig-status-label" style="font-size:12px;color:var(--text-secondary);margin-bottom:.5rem;"></div>
-      <div style="border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;touch-action:none;background:#FAFAFA;">
-        <canvas id="sig-canvas" style="display:block;width:100%;height:160px;"></canvas>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline btn-sm" id="btn-sig-clear"><i class="fa-solid fa-eraser me-1"></i>Hapus</button>
-      <button class="btn btn-primary" id="save-modal-signature"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Tanda Tangan</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Disposisi -->
-<div class="modal-backdrop" id="modal-disposisi">
-  <div class="modal-box">
-    <div class="kop-header">
-      <div class="icon-badge"><i class="fa-solid fa-triangle-exclamation"></i></div>
-      <div><h5>Buat Disposisi Tindak Lanjut</h5><p>Insiden pelanggaran baku mutu memerlukan investigasi akar masalah.</p></div>
-      <button class="btn btn-sm" id="close-modal-disposisi" style="margin-left:auto;color:rgba(255,255,255,.7);background:rgba(0,0,0,.15);border:none;"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="disp-log-id">
-      <div class="form-row"><label class="form-label">Parameter Melanggar</label><input type="text" id="disp-parameter" class="form-control" readonly></div>
-      <div class="form-row"><label class="form-label">Instruksi Tindak Lanjut *</label><textarea id="disp-instruksi" class="form-control" rows="2" placeholder="Langkah penanganan yang harus dilakukan…" required></textarea></div>
-      <div class="form-row"><label class="form-label">PIC Pelaksana *</label><input type="text" id="disp-pic" class="form-control" placeholder="Nama penanggung jawab investigasi" required></div>
-      <div class="form-row"><label class="form-label">Temuan Awal (opsional)</label><textarea id="disp-temuan" class="form-control" rows="2" placeholder="Dugaan akar masalah awal…"></textarea></div>
-      <div class="form-row"><label class="form-label">Target Penyelesaian</label><input type="date" id="disp-target" class="form-control"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="cancel-modal-disposisi">Batal</button>
-      <button class="btn btn-primary" id="save-modal-disposisi"><i class="fa-solid fa-paper-plane me-1"></i>Kirim Disposisi</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Settling Pond -->
-<div class="modal-backdrop" id="modal-pond">
-  <div class="modal-box">
-    <div class="kop-header">
-      <div class="icon-badge"><i class="fa-solid fa-location-dot"></i></div>
-      <div><h5 id="pond-modal-title">Tambah Settling Pond</h5><p>Data titik sampling & koordinat lokasi</p></div>
-      <button class="btn btn-sm" onclick="document.getElementById('modal-pond').classList.remove('active')" style="margin-left:auto;color:rgba(255,255,255,.7);background:rgba(0,0,0,.15);border:none;"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="modal-body">
-      <input type="hidden" id="pond-id">
-      <div class="form-row"><label class="form-label">Nama Settling Pond *</label><input type="text" id="pond-nama" class="form-control" placeholder="Settling Pond Pit Barat" required></div>
-      <div class="form-row"><label class="form-label">Blok / Area *</label><input type="text" id="pond-blok" class="form-control" placeholder="Pit Barat Kompartemen 1-3" required></div>
-      <div class="coord-input-row form-row">
-        <div><label class="form-label">Latitude</label><input type="text" id="pond-lat" class="form-control form-control-mono" placeholder="-0.494820"></div>
-        <div><label class="form-label">Longitude</label><input type="text" id="pond-lng" class="form-control form-control-mono" placeholder="117.143210"></div>
-      </div>
-      <div class="coord-preview" id="pond-coord-preview">Belum ada koordinat</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem;">
-        <div><label class="form-label">Jumlah Kompartemen</label><input type="number" id="pond-kompartemen" class="form-control" value="1" min="1" max="10"></div>
-        <div><label class="form-label">Status Operasi</label>
-          <select id="pond-status" class="form-control"><option value="AKTIF">AKTIF</option><option value="TIDAK AKTIF">TIDAK AKTIF</option><option value="DALAM KONSTRUKSI">DALAM KONSTRUKSI</option></select></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="cancel-modal-pond">Batal</button>
-      <button class="btn btn-primary" id="save-modal-pond"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Pond</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Kontrol Laporan -->
-<div class="modal-backdrop" id="modalReportConfig">
-  <div class="modal-box wide">
-    <div class="kop-header">
-      <div class="icon-badge"><i class="fa-solid fa-file-contract"></i></div>
-      <div>
-        <h5>Modal Kontrol Pelaporan</h5>
-        <p id="modal-report-subtitle">Konfigurasi, generate nomor sampel, kirim untuk review &amp; tanda tangan</p>
-      </div>
-      <button class="btn btn-sm" id="close-modal-report" style="margin-left:auto;color:rgba(255,255,255,.7);background:rgba(0,0,0,.15);border:none;"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="modal-body" style="max-height:80vh;overflow-y:auto;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
-
-        <!-- Kolom Kiri -->
-        <div>
-          <!-- Jenis Dokumen -->
-          <div class="form-row">
-            <label class="form-label">Jenis Dokumen *</label>
-            <select id="rep-jenis-dokumen" class="form-control" required>
-              <option value="HARIAN">Laporan Harian (data pengukuran tunggal)</option>
-              <option value="BULANAN">Laporan Bulanan (rekapitulasi periode)</option>
-            </select>
+            <button onclick="resetFilterLimbahMasuk()" class="text-xs text-slate-400 hover:text-white underline">
+              Reset Filter
+            </button>
           </div>
 
-          <!-- ── HARIAN: pilih tanggal ── -->
-          <div id="rep-date-harian-row" class="form-row">
-            <label class="form-label"><i class="fa-solid fa-calendar-day me-1" style="color:var(--info);"></i>Tanggal Laporan *</label>
-            <input type="date" id="rep-harian-tanggal" class="form-control">
-            <div style="font-size:10.5px;color:var(--text-muted);margin-top:.3rem;">Pilih tanggal → data akan dimuat otomatis ke tabel di bawah</div>
-          </div>
-
-          <!-- ── BULANAN: pilih periode ── -->
-          <div id="rep-period-bulanan-row" class="form-row hidden">
-            <label class="form-label"><i class="fa-solid fa-calendar-range me-1" style="color:var(--info);"></i>Periode Laporan *</label>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
-              <div>
-                <div style="font-size:10px;color:var(--text-muted);margin-bottom:.2rem;">Dari Tanggal</div>
-                <input type="date" id="rep-start-modal" class="form-control">
-              </div>
-              <div>
-                <div style="font-size:10px;color:var(--text-muted);margin-bottom:.2rem;">Sampai Tanggal</div>
-                <input type="date" id="rep-end-modal" class="form-control">
-              </div>
-            </div>
-          </div>
-
-          <!-- Area Pond -->
-          <div class="form-row">
-            <label class="form-label">Area (Kode Settling Pond) *</label>
-            <select id="rep-area-kode-select" class="form-control"><option value="">— Pilih Settling Pond —</option></select>
-            <input type="hidden" id="rep-area-kode">
-          </div>
-
-          <!-- Nomor Sampel -->
-          <div class="form-row">
-            <label class="form-label">Nomor Sampel</label>
-            <div style="display:flex;gap:.5rem;">
-              <input type="text" id="rep-nomor-sampel" class="form-control form-control-mono" placeholder="Pilih pond lalu klik Generate" style="flex:1;">
-              <button type="button" class="btn btn-outline btn-sm" id="btn-gen-nomor"><i class="fa-solid fa-rotate me-1"></i>Generate</button>
-            </div>
-            <div style="font-size:10.5px;color:var(--text-muted);margin-top:.25rem;">Format: DDMMYY/SP-[POND]/[ALIRAN]</div>
-          </div>
-
-          <!-- Sumber Air Limbah (Manual) -->
-          <div class="form-row">
-            <label class="form-label">Sumber Air Limbah *</label>
-            <input type="text" id="rep-sumber-limbah" class="form-control" placeholder="Ketik sumber air limbah (contoh: Runoff Tambang)" value="Runoff Tambang" required>
-          </div>
-
-          <!-- ── TABEL PREVIEW DATA (HARIAN) ── -->
-          <div id="rep-modal-table-wrap" class="hidden">
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);margin-bottom:.5rem;">
-              <i class="fa-solid fa-table me-1"></i>Data Sampel pada Tanggal Terpilih
-            </div>
-            <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-sm);max-height:200px;overflow-y:auto;">
-              <table class="table-mine" style="font-size:11px;">
+          <!-- Table Limbah Masuk -->
+          <div class="data-card">
+            <div class="overflow-x-auto rounded-xl border border-vault-border">
+              <table class="custom-table">
                 <thead>
                   <tr>
-                    <th>Jam</th><th>Pond</th><th>Aliran</th>
-                    <th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th><th>Status</th>
+                    <th>ID Masuk</th>
+                    <th>Tanggal Masuk</th>
+                    <th>Kode</th>
+                    <th>Nama Limbah</th>
+                    <th>Jumlah</th>
+                    <th>Status Rintek</th>
+                    <th>Jatuh Tempo</th>
+                    <th>Sisa Hari</th>
+                    <th>Operator</th>
+                    <th>Stok</th>
+                    <th>Aksi</th>
                   </tr>
                 </thead>
-                <tbody id="rep-modal-table-body">
-                  <tr><td colspan="8" class="text-muted" style="text-align:center;padding:.75rem;">Pilih tanggal untuk memuat data</td></tr>
+                <tbody id="tableLimbahMasukBody">
+                  <!-- Populated by JS -->
                 </tbody>
               </table>
             </div>
-            <div id="rep-modal-table-count" style="font-size:10.5px;color:var(--text-muted);margin-top:.3rem;"></div>
+          </div>
+        </section>
 
-            <!-- Foto Dokumentasi -->
-            <div id="rep-modal-photo-strip-wrap" class="hidden" style="margin-top:.85rem;">
-              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);margin-bottom:.5rem;">
-                <i class="fa-solid fa-camera me-1"></i>Dokumentasi Foto
+        <!-- ================================================================
+             VIEW 3: LIMBAH KELUAR (DENGAN FILTER & REFRESH)
+             ================================================================ -->
+        <section id="view-keluar" class="space-y-5 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-white">Pencatatan Limbah Keluar (Penyerahan ke Pihak Ketiga)</h2>
+              <p class="text-xs text-slate-400">Wajib verifikasi Surat Jalan dan Manifes Festronik resmi</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="refreshLimbahKeluar()" class="role-quick-btn flex items-center gap-1.5" title="Refresh Data Keluar">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> <span>Refresh</span>
+              </button>
+              <button onclick="openModalLimbahKeluar()" class="btn-primary-pill !w-auto">
+                <i data-lucide="truck" class="w-4 h-4"></i>
+                <span>Catat Pengeluaran Limbah</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Baris Filter Limbah Keluar -->
+          <div class="filter-bar">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <input type="text" id="filterKeluarSearch" onkeyup="applyFilterLimbahKeluar()" placeholder="Cari nomor manifes / SJ..." class="filter-input w-48">
+              
+              <select id="filterKeluarPK" onchange="applyFilterLimbahKeluar()" class="filter-input">
+                <option value="">Semua Pihak Ketiga</option>
+                <!-- Populated by JS -->
+              </select>
+
+              <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                <span>Dari:</span>
+                <input type="date" id="filterKeluarTglDari" onchange="applyFilterLimbahKeluar()" class="filter-input !py-1">
+                <span>S/d:</span>
+                <input type="date" id="filterKeluarTglSampai" onchange="applyFilterLimbahKeluar()" class="filter-input !py-1">
               </div>
-              <div id="rep-modal-photo-strip" class="modal-photo-strip"></div>
+            </div>
+
+            <button onclick="resetFilterLimbahKeluar()" class="text-xs text-slate-400 hover:text-white underline">
+              Reset Filter
+            </button>
+          </div>
+
+          <div class="data-card">
+            <div class="overflow-x-auto rounded-xl border border-vault-border">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>ID Keluar</th>
+                    <th>Ref ID Masuk</th>
+                    <th>Tanggal Keluar</th>
+                    <th>Limbah</th>
+                    <th>Jumlah</th>
+                    <th>Pihak Ketiga</th>
+                    <th>Surat Jalan & Manifes</th>
+                    <th>Petugas</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="tableLimbahKeluarBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             VIEW 4: PENANGANAN KHUSUS (APPROVAL PJ TPS)
+             ================================================================ -->
+        <section id="view-penanganan-khusus" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-white">Antrean Limbah Penanganan Khusus</h2>
+              <p class="text-xs text-slate-400">Verifikasi limbah non-rintek yang membutuhkan telaah teknis Penanggung Jawab TPS</p>
+            </div>
+            <span class="text-xs px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-medium">
+              Otoritas: Penanggung Jawab TPS
+            </span>
+          </div>
+
+          <div class="data-card">
+            <div class="overflow-x-auto rounded-xl border border-vault-border">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>ID PK</th>
+                    <th>Ref ID Masuk</th>
+                    <th>Limbah</th>
+                    <th>Alasan Khusus</th>
+                    <th>Status Review</th>
+                    <th>Approver</th>
+                    <th>Catatan Tindak Lanjut</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tablePenangananKhususBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             VIEW 5: INSPEKSI TPS K3L (DENGAN FILTER, REFRESH, EDIT, HAPUS)
+             ================================================================ -->
+        <section id="view-inspeksi" class="space-y-5 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-white">Inspeksi Sarana & K3L TPS LB3 01</h2>
+              <p class="text-xs text-slate-400">Pemantauan APAR, eyewash, saluran drainase, bak oil catcher, dan rambu keselamatan</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="refreshInspeksi()" class="role-quick-btn flex items-center gap-1.5" title="Refresh Inspeksi">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> <span>Refresh</span>
+              </button>
+              <button onclick="openModalInspeksi()" class="btn-lime-pill">
+                <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                <span>Isi Checklist Inspeksi</span>
+              </button>
             </div>
           </div>
 
-          <!-- Loading state untuk tabel modal -->
-          <div id="rep-modal-table-loading" class="hidden" style="text-align:center;padding:.75rem;font-size:12px;color:var(--text-muted);">
-            <i class="fa-solid fa-spinner fa-spin me-1"></i>Memuat data…
-          </div>
-        </div>
+          <!-- Baris Filter Inspeksi -->
+          <div class="filter-bar">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <select id="filterInspeksiKondisi" onchange="applyFilterInspeksi()" class="filter-input">
+                <option value="">Semua Kondisi Fisik</option>
+                <option value="Baik">Hanya Kondisi Baik</option>
+                <option value="Rusak">Hanya Rusak / Perlu Perbaikan</option>
+              </select>
 
-        <!-- Kolom Kanan -->
-        <div>
-          <!-- Pratinjau Tanda Tangan -->
-          <div style="background:var(--compliant-bg);border:1px solid var(--compliant-border);border-radius:var(--r-sm);padding:1rem;margin-bottom:1rem;">
-            <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.5rem;"><i class="fa-solid fa-signature me-1"></i>Pratinjau Blok Tanda Tangan (Otomatis)</div>
-            <div id="rep-signature-preview" style="font-size:12.5px;line-height:1.8;color:var(--text-secondary);"><i>Memuat…</i></div>
-          </div>
+              <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                <span>Tanggal:</span>
+                <input type="date" id="filterInspeksiTgl" onchange="applyFilterInspeksi()" class="filter-input !py-1">
+              </div>
+            </div>
 
-          <!-- Alur Persetujuan -->
-          <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-sm);padding:.85rem;font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:1rem;">
-            <div style="font-weight:700;margin-bottom:.35rem;"><i class="fa-solid fa-diagram-project me-1"></i>Alur Persetujuan Laporan</div>
-            <div>1. <b>Operator</b> — Buat &amp; kirim ke Supervisor</div>
-            <div>2. <b>Supervisor</b> — Review, tanda tangan, teruskan ke KTT</div>
-            <div>3. <b>KTT</b> — Setujui &amp; tanda tangan final</div>
-            <div>4. <b>Supervisor / KTT</b> — Cetak / Unduh laporan final</div>
+            <button onclick="resetFilterInspeksi()" class="text-xs text-slate-400 hover:text-white underline">
+              Reset Filter
+            </button>
           </div>
 
-          <!-- Ekspor Data (SPV/Manajemen/Admin only) -->
-          <div class="spv-manajemen-only">
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);margin-bottom:.5rem;">Ekspor Data</div>
-            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-              <button class="btn btn-outline btn-sm" id="btn-export-xls"><i class="fa-solid fa-file-excel me-1"></i>Ekspor XLS</button>
-              <button class="btn btn-outline btn-sm" id="btn-export-csv"><i class="fa-solid fa-file-csv me-1"></i>Ekspor CSV</button>
-              <button class="btn btn-outline btn-sm" id="btn-preview-print"><i class="fa-solid fa-print me-1"></i>Cetak Preview</button>
-              <button class="btn btn-outline btn-sm" id="btn-export-pdf"><i class="fa-solid fa-file-pdf me-1"></i>PDF / Print</button>
+          <div class="data-card">
+            <h3 class="text-base font-bold text-white mb-4">Riwayat Pemeriksaan Fasilitas TPS</h3>
+            <div class="overflow-x-auto rounded-xl border border-vault-border">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>ID Inspeksi</th>
+                    <th>Tanggal</th>
+                    <th>Item Fasilitas K3L</th>
+                    <th>Kondisi Fisik</th>
+                    <th>Catatan Temuan</th>
+                    <th>Petugas</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tableInspeksiBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             VIEW 6: LOGBOOK PERMEN LHK NO. 6/2021 (DENGAN FILTER & REFRESH)
+             ================================================================ -->
+        <section id="view-logbook" class="space-y-5 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
+            <div>
+              <h2 class="text-xl font-bold text-white">Logbook Pencatatan Limbah B3</h2>
+              <p class="text-xs text-slate-400">Sesuai Format Resmi Lampiran IX Peraturan Menteri LHK No. 6 Tahun 2021</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="refreshLogbook()" class="role-quick-btn flex items-center gap-1.5" title="Refresh Logbook">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> <span>Refresh</span>
+              </button>
+              <button onclick="exportLogbookCSV()" class="btn-primary-pill !w-auto !py-2 !px-3 text-xs bg-slate-800 hover:bg-slate-700">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                <span>Download CSV</span>
+              </button>
+              <button onclick="printOfficialLogbookLandscape()" class="btn-lime-pill !py-2 !px-3 text-xs">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                <span>Cetak / Simpan PDF (Landscape)</span>
+              </button>
             </div>
           </div>
 
-          <!-- Info jumlah data terpilih (Bulanan) -->
-          <div id="rep-bulanan-summary" class="hidden" style="margin-top:1rem;padding:.65rem .85rem;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-sm);font-size:11.5px;color:var(--text-secondary);">
-            <i class="fa-solid fa-circle-info me-1"></i><span id="rep-bulanan-summary-text">Pilih periode untuk melihat ringkasan data</span>
+          <!-- Baris Filter Logbook -->
+          <div class="filter-bar no-print">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <select id="filterLogbookKode" onchange="applyFilterLogbook()" class="filter-input">
+                <option value="">Semua Jenis Limbah Rintek</option>
+                <!-- Populated by JS -->
+              </select>
+
+              <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                <span>Periode Dari:</span>
+                <input type="date" id="filterLogbookTglDari" onchange="applyFilterLogbook()" class="filter-input !py-1">
+                <span>Sampai:</span>
+                <input type="date" id="filterLogbookTglSampai" onchange="applyFilterLogbook()" class="filter-input !py-1">
+              </div>
+            </div>
+
+            <button onclick="resetFilterLogbook()" class="text-xs text-slate-400 hover:text-white underline">
+              Reset Filter
+            </button>
           </div>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" id="close-modal-report-cancel" onclick="document.getElementById('modalReportConfig').classList.remove('active')">Batal</button>
-      <button class="btn btn-primary" id="btn-send-to-spv">
-        <i class="fa-solid fa-paper-plane me-1"></i><span id="btn-send-label">Kirim ke Supervisor</span>
-      </button>
+
+          <!-- Table Logbook Preview Screen -->
+          <div class="data-card bg-slate-900/90">
+            <div class="overflow-x-auto">
+              <table class="custom-table text-xs">
+                <thead>
+                  <tr class="bg-slate-800">
+                    <th rowspan="2" class="text-center align-middle">No</th>
+                    <th colspan="4" class="text-center">Limbah B3 Masuk</th>
+                    <th colspan="3" class="text-center">Limbah B3 Keluar</th>
+                    <th rowspan="2" class="text-center align-middle">Sisa Limbah di TPS</th>
+                    <th rowspan="2" class="text-center align-middle">Petugas (Paraf)</th>
+                  </tr>
+                  <tr class="bg-slate-800/80">
+                    <th>Tanggal Masuk</th>
+                    <th>Kode Limbah</th>
+                    <th>Nama Limbah</th>
+                    <th>Jumlah</th>
+                    <th>Tanggal Keluar</th>
+                    <th>Tujuan Penyerahan</th>
+                    <th>Jumlah</th>
+                  </tr>
+                </thead>
+                <tbody id="tableLogbookBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             VIEW 7: NERACA LIMBAH B3 & E-SIGNATURE 3 TINGKAT (DENGAN FILTER & REFRESH)
+             ================================================================ -->
+        <section id="view-neraca" class="space-y-5 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
+            <div>
+              <h2 class="text-xl font-bold text-white">Neraca Limbah B3 (Lampiran IX Permen LHK 6/2021)</h2>
+              <p class="text-xs text-slate-400">Penetapan Kinerja Pengelolaan & Pengesahan Digital Berjenjang 3 Tingkat</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="refreshNeraca()" class="role-quick-btn flex items-center gap-1.5" title="Refresh Neraca">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> <span>Refresh</span>
+              </button>
+              <button onclick="generateDraftNeracaPrompt()" class="btn-lime-pill !py-2 !px-3 text-xs">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Generate Draft Neraca Baru</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Baris Filter Neraca -->
+          <div class="filter-bar no-print">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <select id="filterNeracaStatus" onchange="applyFilterNeraca()" class="filter-input">
+                <option value="">Semua Status Approval</option>
+                <option value="Draft">Draft (Menunggu Operator)</option>
+                <option value="Menunggu Approval Penanggung Jawab">Menunggu PJ TPS</option>
+                <option value="Menunggu Pengesahan KTT">Menunggu KTT</option>
+                <option value="Final">Disahkan (Final)</option>
+              </select>
+            </div>
+            <button onclick="resetFilterNeraca()" class="text-xs text-slate-400 hover:text-white underline">
+              Reset Filter
+            </button>
+          </div>
+
+          <!-- List of Neraca Batches -->
+          <div id="neracaListContainer" class="space-y-6">
+            <!-- Populated by JS -->
+          </div>
+        </section>
+
+        <!-- ================================================================
+             VIEW 8: MASTER RINTEK B3 (DENGAN EDIT & HAPUS)
+             ================================================================ -->
+        <section id="view-rintek" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-white">Master Rincian Teknis (Rintek) TPS LB3 01</h2>
+              <p class="text-xs text-slate-400">Daftar Limbah B3 Resmi yang disetujui untuk PT. Etam Manunggal Jaya</p>
+            </div>
+            <button onclick="openModalTambahRintek()" class="btn-primary-pill !w-auto text-xs">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Tambah Rintek</span>
+            </button>
+          </div>
+
+          <div class="data-card">
+            <div class="overflow-x-auto rounded-xl border border-vault-border">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Kode</th>
+                    <th>Nama Limbah B3</th>
+                    <th>Sumber</th>
+                    <th>Karakteristik Bahaya</th>
+                    <th>Wadah / Pengemasan</th>
+                    <th>Kapasitas Wadah</th>
+                    <th>Batas Waktu Simpan</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tableMasterRintekBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             VIEW 9: PIHAK KETIGA / TRANSPORTER (DENGAN EDIT & HAPUS)
+             ================================================================ -->
+        <section id="view-pihak-ketiga" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-white">Pihak Ketiga Berizin (Pengangkut & Pengolah)</h2>
+              <p class="text-xs text-slate-400">Mitra berizin resmi KLHK untuk penyerahan limbah B3 lanjutan</p>
+            </div>
+            <button onclick="openModalTambahPihakKetiga()" class="btn-lime-pill text-xs">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Tambah Pihak Ketiga</span>
+            </button>
+          </div>
+
+          <div class="data-card">
+            <div class="overflow-x-auto rounded-xl border border-vault-border">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nama Perusahaan</th>
+                    <th>No. Izin KLHK</th>
+                    <th>Alamat Operasional</th>
+                    <th>Kontak Person</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tablePihakKetigaBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             VIEW 10: MANAJEMEN PENGGUNA (DENGAN EDIT & HAPUS)
+             ================================================================ -->
+        <section id="view-users" class="space-y-6 hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold text-white">Manajemen Akun Pengguna & Hak Akses</h2>
+              <p class="text-xs text-slate-400">Kelola 4 level peran: Operator, Penanggung Jawab, Admin HSE, dan KTT</p>
+            </div>
+            <button onclick="openModalTambahUser()" class="btn-lime-pill text-xs">
+              <i data-lucide="user-plus" class="w-4 h-4"></i>
+              <span>Tambah Pengguna</span>
+            </button>
+          </div>
+
+          <div class="data-card">
+            <div class="overflow-x-auto rounded-xl border border-vault-border">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nama Lengkap</th>
+                    <th>Username</th>
+                    <th>Peran / Role</th>
+                    <th>Status Akun</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="tableUsersBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================================================================
+             VIEW 11: PENGATURAN TPS & AUDIT LOG (DENGAN IDENTITAS LENGKAP & LOGO)
+             ================================================================ -->
+        <section id="view-settings" class="space-y-6 hidden">
+          <div>
+            <h2 class="text-xl font-bold text-white">Pengaturan Sistem & Informasi Legal</h2>
+            <p class="text-xs text-slate-400">Konfigurasi identitas resmi perusahaan, logo aplikasi, wallpaper login, dan cloud bridge</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Profil Identitas Resmi Perusahaan (Sesuai Revisi #5) -->
+            <div class="data-card space-y-4">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="building-2" class="w-4 h-4 text-sky-400"></i> Identitas Perusahaan & Fasilitas TPS
+              </h3>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Nama Perusahaan</label>
+                <input type="text" id="setPerusahaan" class="auth-input !py-2 text-xs">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Bidang Usaha</label>
+                <input type="text" id="setBidangUsaha" placeholder="Pertambangan Batubara" class="auth-input !py-2 text-xs">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Alamat Kantor Resmi</label>
+                <textarea id="setAlamatKantor" rows="2" class="auth-input !py-2 text-xs"></textarea>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">No. Telepon</label>
+                  <input type="text" id="setTelp" placeholder="0541-748920" class="auth-input !py-2 text-xs">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Email Resmi</label>
+                  <input type="email" id="setEmail" placeholder="info@etammanunggal.co.id" class="auth-input !py-2 text-xs">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Titik Koordinat & Lokasi TPS</label>
+                <input type="text" id="setLokasi" class="auth-input !py-2 text-xs">
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Luas Bangunan</label>
+                  <input type="text" id="setLuas" class="auth-input !py-2 text-xs">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-slate-400 mb-1">Kapasitas Maksimal</label>
+                  <input type="text" id="setKapasitas" class="auth-input !py-2 text-xs">
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Penanggung Jawab Teknis</label>
+                <input type="text" id="setPJ" class="auth-input !py-2 text-xs">
+              </div>
+
+              <!-- Upload Logo Perusahaan (Revisi #5) -->
+              <div class="pt-2 border-t border-slate-800">
+                <label class="block text-xs font-semibold text-slate-300 mb-1">
+                  Upload Logo Perusahaan (Digunakan pada Aplikasi & KOP Dokumen)
+                </label>
+                <div class="flex items-center gap-3">
+                  <div id="settingsLogoPreview" class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                    <i data-lucide="image" class="w-5 h-5 text-slate-500"></i>
+                  </div>
+                  <input type="file" id="uploadLogoFile" accept="image/*" onchange="handleUploadLogo(event)" class="text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-sky-400">
+                </div>
+              </div>
+
+              <!-- Upload Foto Background Halaman Login (Revisi #5) -->
+              <div class="pt-2 border-t border-slate-800">
+                <label class="block text-xs font-semibold text-slate-300 mb-1">
+                  Upload Foto Background Halaman Login
+                </label>
+                <input type="file" id="uploadBgFile" accept="image/*" onchange="handleUploadBgLogin(event)" class="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-vault-lime">
+              </div>
+
+              <button onclick="saveSettingsForm()" class="btn-lime-pill !w-full justify-center">
+                Simpan Identitas & Logo Perusahaan
+              </button>
+            </div>
+
+            <!-- GAS Backend Integration Card -->
+            <div class="data-card space-y-4">
+              <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="cloud-cog" class="w-4 h-4 text-vault-lime"></i> Integrasi Google Apps Script
+              </h3>
+              <p class="text-xs text-slate-400">
+                Aplikasi ini mendukung mode <strong>Hybrid</strong>: Dapat berjalan di GitHub Pages dengan menghubungkan Web App URL dari GAS backend (`Code.gs`), atau berjalan langsung dengan Local Storage Engine.
+              </p>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-400 mb-1">Google Apps Script Web App Exec URL</label>
+                <input type="url" id="inputGasUrl" placeholder="https://script.google.com/macros/s/.../exec" class="auth-input !py-2 text-xs font-mono">
+              </div>
+
+              <div class="flex items-center gap-2">
+                <button onclick="saveGasUrlConfig()" class="btn-primary-pill !py-2 !px-4 text-xs !w-auto">
+                  Simpan & Test Koneksi
+                </button>
+                <button onclick="resetToLocalEngine()" class="role-quick-btn text-xs">
+                  Gunakan Local Demo Engine
+                </button>
+              </div>
+
+              <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-400">Status Database:</span>
+                  <span id="cfgDbStatus" class="text-vault-lime font-mono">Siap Digunakan</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-400">Folder Storage Drive:</span>
+                  <span class="text-sky-400 font-mono">EnviroMine_Monitor_Data</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Audit Log Table -->
+          <div class="data-card">
+            <h3 class="text-base font-bold text-white mb-3">Jejak Audit Aktivitas (Audit Trail)</h3>
+            <div class="overflow-x-auto rounded-xl border border-vault-border max-h-60 overflow-y-auto">
+              <table class="custom-table text-xs">
+                <thead>
+                  <tr>
+                    <th>Waktu</th>
+                    <th>Pengguna</th>
+                    <th>Aksi</th>
+                    <th>Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody id="tableAuditLogsBody">
+                  <!-- Populated by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
     </div>
   </div>
-</div>
 
-<!-- Modal Pengaturan Profil Pengguna -->
-<div class="modal-backdrop" id="modal-profile">
-  <div class="modal-box">
-    <div class="kop-header">
-      <div class="icon-badge"><i class="fa-solid fa-user-gear"></i></div>
-      <div>
-        <h5>Pengaturan Profil Pengguna</h5>
-        <p>Perbarui identitas, foto profil, dan kata sandi akun Anda</p>
+  <!-- ======================================================================
+       3. MODALS SYSTEM
+       ====================================================================== -->
+
+  <!-- Modal 3.1: Input Limbah Masuk -->
+  <div id="modalLimbahMasuk" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="arrow-down-to-dot" class="w-5 h-5 text-vault-lime"></i>
+          Pencatatan Limbah Masuk ke TPS
+        </h3>
+        <button onclick="closeModal('modalLimbahMasuk')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
-      <button class="btn btn-sm" id="close-modal-profile" style="margin-left:auto;color:rgba(255,255,255,.7);background:rgba(0,0,0,.15);border:none;"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="modal-body">
-      <form id="form-profile" novalidate>
-        <!-- Foto Profil -->
-        <div style="display:flex;align-items:center;gap:1.25rem;margin-bottom:1.25rem;padding:.75rem;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-sm);">
-          <div id="profile-avatar-preview" style="width:64px;height:64px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;overflow:hidden;flex-shrink:0;border:2px solid var(--border);">
-            ?
-          </div>
-          <div style="flex:1;">
-            <label class="form-label" style="margin-bottom:.2rem;">Foto Profil</label>
-            <input type="file" id="profile-photo-input" accept="image/*" class="form-control" style="height:auto;padding:.3rem .5rem;font-size:12px;">
-            <div style="font-size:10.5px;color:var(--text-muted);margin-top:.25rem;">Format JPG/PNG, maksimal 2MB</div>
-          </div>
-        </div>
 
-        <div class="form-row">
-          <label class="form-label">Nama Lengkap *</label>
-          <input type="text" id="profile-nama" class="form-control" required>
-        </div>
-        <div class="form-row">
-          <label class="form-label">Username *</label>
-          <input type="text" id="profile-username" class="form-control" required>
-        </div>
-        <div class="form-row">
-          <label class="form-label">Role Akun</label>
-          <select id="profile-role" class="form-control">
-            <option value="OPERATOR">OPERATOR</option>
-            <option value="SUPERVISOR">SUPERVISOR</option>
-            <option value="MANAJEMEN">MANAJEMEN</option>
-            <option value="ADMIN">ADMIN</option>
+      <form id="formLimbahMasuk" onsubmit="handleFormLimbahMasuk(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Pilih Jenis Limbah B3 (Rintek PT EMJ)</label>
+          <select id="masukJenisSelect" onchange="handleSelectLimbahRintek(this.value)" required class="auth-input !py-2 text-xs">
+            <option value="">-- Pilih Limbah Terdaftar di Rintek --</option>
+            <!-- Populated by JS -->
+            <option value="CUSTOM_NON_RINTEK">+ Lainnya (Di Luar Rintek - Penanganan Khusus)</option>
           </select>
         </div>
-        <hr style="border:0;border-top:1px solid var(--border);margin:1.25rem 0;">
-        <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:.75rem;">
-          <i class="fa-solid fa-key me-1"></i>Ganti Kata Sandi (Opsional)
+
+        <div id="nonRintekWarnBox" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300">
+          <p class="font-bold flex items-center gap-1.5">
+            <i data-lucide="alert-triangle" class="w-4 h-4"></i> Soft Warning: Limbah di Luar Rintek
+          </p>
+          <p class="text-[11px] text-amber-200/80 mt-1">
+            Limbah ini akan otomatis diberi flag <strong>"Penanganan Khusus"</strong> dan wajib diverifikasi oleh Penanggung Jawab TPS.
+          </p>
+          <input type="text" id="masukAlasanKhusus" placeholder="Alasan penanganan khusus..." class="auth-input !py-1.5 text-xs mt-2">
         </div>
-        <div class="form-row">
-          <label class="form-label">Kata Sandi Baru</label>
-          <input type="password" id="profile-password" class="form-control" placeholder="Kosongkan jika tidak ingin mengubah kata sandi">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Kode Limbah</label>
+            <input type="text" id="masukKode" required readonly class="auth-input !py-2 text-xs bg-slate-800 text-sky-400 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Karakteristik</label>
+            <input type="text" id="masukKarakteristik" readonly class="auth-input !py-2 text-xs bg-slate-800 text-slate-300">
+          </div>
         </div>
-        <div class="form-row">
-          <label class="form-label">Konfirmasi Kata Sandi Baru</label>
-          <input type="password" id="profile-password-confirm" class="form-control" placeholder="Ulangi kata sandi baru">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Jumlah</label>
+            <input type="number" step="0.01" id="masukJumlah" required placeholder="0.00" class="auth-input !py-2 text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Satuan</label>
+            <select id="masukSatuan" class="auth-input !py-2 text-xs">
+              <option value="Kg">Kg</option>
+              <option value="Liter">Liter</option>
+              <option value="Ton">Ton</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Tanggal Masuk</label>
+            <input type="datetime-local" id="masukTanggal" required class="auth-input !py-2 text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Masa Simpan (Hari)</label>
+            <input type="text" id="masukBatasHari" readonly class="auth-input !py-2 text-xs bg-slate-800 text-slate-300 font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Upload Foto Kondisi Kemasan / Limbah</label>
+          <input type="file" id="masukFotoFile" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-sky-400 hover:file:bg-slate-700">
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalLimbahMasuk')" class="role-quick-btn">Batal</button>
+          <button type="submit" class="btn-lime-pill">Simpan Data Masuk</button>
         </div>
       </form>
     </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-outline" id="cancel-modal-profile">Batal</button>
-      <button type="button" class="btn btn-primary" id="save-modal-profile"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Perubahan</button>
+  </div>
+
+  <!-- Modal 3.2: Input Limbah Keluar -->
+  <div id="modalLimbahKeluar" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="truck" class="w-5 h-5 text-sky-400"></i>
+          Pencatatan Limbah Keluar (Penyerahan)
+        </h3>
+        <button onclick="closeModal('modalLimbahKeluar')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="formLimbahKeluar" onsubmit="handleFormLimbahKeluar(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Pilih Limbah Tersedia di Stok TPS</label>
+          <select id="keluarRefMasukSelect" onchange="handleSelectStokKeluar(this.value)" required class="auth-input !py-2 text-xs">
+            <option value="">-- Pilih dari Stok Masuk yang Tersedia --</option>
+            <!-- Populated by JS -->
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Jumlah Dikeluarkan</label>
+            <input type="number" step="0.01" id="keluarJumlah" required class="auth-input !py-2 text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Tanggal Penyerahan</label>
+            <input type="datetime-local" id="keluarTanggal" required class="auth-input !py-2 text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Pihak Ketiga (Tujuan Pengangkut/Pengolah)</label>
+          <select id="keluarPihakKetigaSelect" class="auth-input !py-2 text-xs">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nomor Surat Jalan & Upload Dokumen</label>
+          <input type="text" id="keluarNoSJ" required placeholder="No. SJ (misal: SJ/EMJ/2026/001)" class="auth-input !py-2 text-xs mb-2">
+          <input type="file" id="keluarFileSJ" accept="image/*,.pdf" class="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-sky-400">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nomor Manifes Festronik & Bukti</label>
+          <input type="text" id="keluarNoManifes" required placeholder="No. Manifes / Festronik KLHK" class="auth-input !py-2 text-xs mb-2">
+          <input type="file" id="keluarFileManifes" accept="image/*,.pdf" class="w-full text-xs text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-sky-400">
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalLimbahKeluar')" class="role-quick-btn">Batal</button>
+          <button type="submit" class="btn-primary-pill !w-auto">Simpan Pengeluaran</button>
+        </div>
+      </form>
     </div>
   </div>
-</div>
 
-<script src="app.js"></script>
+  <!-- Modal 3.3: Digital Signature Pad (3-Tier Approval) -->
+  <div id="modalSignature" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="pen-tool" class="w-5 h-5 text-vault-lime"></i>
+            Tanda Tangan Digital (E-Signature)
+          </h3>
+          <p id="signatureRoleLabel" class="text-xs text-slate-400 mt-0.5">Penandatangan: Operator TPS</p>
+        </div>
+        <button onclick="closeModal('modalSignature')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300">
+        Bubuhkan tanda tangan Anda di area putih di bawah ini menggunakan sentuhan jari (HP/Tablet) atau mouse (PC):
+      </p>
+
+      <div class="signature-pad-container">
+        <canvas id="signatureCanvas" class="signature-canvas"></canvas>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button type="button" onclick="clearSignatureCanvas()" class="role-quick-btn flex items-center gap-1">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Hapus Goresan
+        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="closeModal('modalSignature')" class="role-quick-btn">Batal</button>
+          <button type="button" onclick="submitDigitalSignature()" class="btn-lime-pill">
+            Simpan & Sahkan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3.4: Inspeksi Fasilitas K3L TPS -->
+  <div id="modalInspeksi" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <i data-lucide="clipboard-check" class="w-5 h-5 text-vault-lime"></i>
+            Checklist Inspeksi Sarana K3L TPS 01
+          </h3>
+          <p class="text-xs text-slate-400">8 Fasilitas darurat dan teknis sesuai Rintek PT EMJ</p>
+        </div>
+        <button onclick="closeModal('modalInspeksi')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="formInspeksi" onsubmit="handleFormInspeksi(event)" class="space-y-4">
+        <div id="inspeksiItemsContainer" class="space-y-3">
+          <!-- 8 items from Rintek rendered by JS -->
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalInspeksi')" class="role-quick-btn">Batal</button>
+          <button type="submit" class="btn-lime-pill">Simpan Hasil Inspeksi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3.5: Konfigurasi URL Google Apps Script -->
+  <div id="modalGasConfig" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="link-2" class="w-5 h-5 text-sky-400"></i>
+          Konfigurasi Endpoint Apps Script
+        </h3>
+        <button onclick="closeModal('modalGasConfig')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300 leading-relaxed">
+        Masukkan URL Web App dari file <code class="text-vault-lime">gas/Code.gs</code> yang telah di-deploy ke Google Apps Script (Deploy as Web App, Access: Anyone).
+      </p>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Web App Exec URL</label>
+        <input type="url" id="modalGasUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="auth-input !py-2 text-xs font-mono">
+      </div>
+
+      <div class="pt-2 flex justify-end gap-2">
+        <button type="button" onclick="closeModal('modalGasConfig')" class="role-quick-btn">Batal</button>
+        <button type="button" onclick="saveModalGasUrl()" class="btn-lime-pill">Simpan URL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3.6: Pengaturan Profil Pengguna (Sesuai Revisi #7) -->
+  <div id="modalUserProfile" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="user-cog" class="w-5 h-5 text-sky-400"></i>
+          Pengaturan Profil Pengguna
+        </h3>
+        <button onclick="closeModal('modalUserProfile')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="formUserProfile" onsubmit="handleSaveUserProfile(event)" class="space-y-3.5">
+        <!-- Foto Profil Upload & Preview -->
+        <div class="flex items-center gap-4">
+          <div id="profilePhotoPreview" class="w-16 h-16 rounded-full bg-slate-800 border-2 border-sky-400 flex items-center justify-center text-lg font-bold text-white overflow-hidden shrink-0">
+            <!-- Avatar initial or img -->
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Ubah Foto Profil</label>
+            <input type="file" id="profilePhotoInput" accept="image/*" onchange="handleProfilePhotoChange(event)" class="text-xs text-slate-400 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-800 file:text-sky-400">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap</label>
+          <input type="text" id="profNama" required class="auth-input !py-2 text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Username</label>
+            <input type="text" id="profUsername" required class="auth-input !py-2 text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Peran / Role</label>
+            <input type="text" id="profRole" readonly class="auth-input !py-2 text-xs bg-slate-800 text-vault-lime font-mono">
+          </div>
+        </div>
+
+        <!-- Section Ganti Password -->
+        <div class="pt-3 border-t border-slate-800">
+          <h4 class="text-xs font-bold text-slate-300 mb-2">Ubah Kata Sandi (Opsional)</h4>
+          <div class="space-y-2.5">
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-0.5">Password Saat Ini</label>
+              <input type="password" id="profCurrentPass" placeholder="Masukkan password lama..." class="auth-input !py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-0.5">Password Baru</label>
+              <input type="password" id="profNewPass" placeholder="Minimal 6 karakter..." class="auth-input !py-1.5 text-xs">
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-400 mb-0.5">Konfirmasi Password Baru</label>
+              <input type="password" id="profConfirmPass" placeholder="Ulangi password baru..." class="auth-input !py-1.5 text-xs">
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalUserProfile')" class="role-quick-btn">Batal</button>
+          <button type="submit" class="btn-lime-pill">Simpan Profil</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3.7: Edit Master Rintek (Revisi #1) -->
+  <div id="modalEditRintek" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-5 h-5 text-sky-400"></i> Edit Master Rintek B3
+        </h3>
+        <button onclick="closeModal('modalEditRintek')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="formEditRintek" onsubmit="handleSaveEditRintek(event)" class="space-y-3">
+        <input type="hidden" id="editRintekOriginalKode">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Kode Limbah</label>
+          <input type="text" id="editRintekKode" required class="auth-input !py-2 text-xs font-mono">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Limbah B3</label>
+          <input type="text" id="editRintekNama" required class="auth-input !py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Sumber Limbah</label>
+          <input type="text" id="editRintekSumber" required class="auth-input !py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Karakteristik Bahaya</label>
+          <input type="text" id="editRintekKarakteristik" required class="auth-input !py-2 text-xs">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Jenis Wadah</label>
+            <input type="text" id="editRintekWadah" required class="auth-input !py-2 text-xs">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Kapasitas Wadah</label>
+            <input type="number" id="editRintekKapasitas" required class="auth-input !py-2 text-xs">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Satuan</label>
+            <select id="editRintekSatuan" class="auth-input !py-2 text-xs">
+              <option value="Kg">Kg</option>
+              <option value="Liter">Liter</option>
+              <option value="Ton">Ton</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 mb-1">Batas Simpan (Hari)</label>
+            <input type="number" id="editRintekBatasHari" required class="auth-input !py-2 text-xs">
+          </div>
+        </div>
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalEditRintek')" class="role-quick-btn">Batal</button>
+          <button type="submit" class="btn-lime-pill">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3.8: Edit Pihak Ketiga (Revisi #1) -->
+  <div id="modalEditPK" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-5 h-5 text-sky-400"></i> Edit Mitra Pihak Ketiga
+        </h3>
+        <button onclick="closeModal('modalEditPK')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="formEditPK" onsubmit="handleSaveEditPK(event)" class="space-y-3">
+        <input type="hidden" id="editPKId">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Perusahaan</label>
+          <input type="text" id="editPKNama" required class="auth-input !py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">No. Izin KLHK</label>
+          <input type="text" id="editPKIzin" required class="auth-input !py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Alamat Operasional</label>
+          <input type="text" id="editPKAlamat" required class="auth-input !py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Kontak Person</label>
+          <input type="text" id="editPKKontak" required class="auth-input !py-2 text-xs">
+        </div>
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalEditPK')" class="role-quick-btn">Batal</button>
+          <button type="submit" class="btn-lime-pill">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3.9: Edit Pengguna / User (Revisi #1) -->
+  <div id="modalEditUser" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="user-check" class="w-5 h-5 text-sky-400"></i> Edit Pengguna Sistem
+        </h3>
+        <button onclick="closeModal('modalEditUser')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="formEditUser" onsubmit="handleSaveEditUser(event)" class="space-y-3">
+        <input type="hidden" id="editUserId">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap</label>
+          <input type="text" id="editUserNama" required class="auth-input !py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Username</label>
+          <input type="text" id="editUserUsername" required class="auth-input !py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Role / Peran</label>
+          <select id="editUserRole" class="auth-input !py-2 text-xs">
+            <option value="Operator">Operator Lapangan</option>
+            <option value="Penanggung Jawab">Penanggung Jawab TPS</option>
+            <option value="Admin HSE">Administrator HSE</option>
+            <option value="Manajemen / KTT">Manajemen / KTT</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Status Akun</label>
+          <select id="editUserStatus" class="auth-input !py-2 text-xs">
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalEditUser')" class="role-quick-btn">Batal</button>
+          <button type="submit" class="btn-lime-pill">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3.10: Edit Inspeksi TPS (Revisi #1) -->
+  <div id="modalEditInspeksi" class="modal-backdrop fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="clipboard-edit" class="w-5 h-5 text-sky-400"></i> Edit Catatan Inspeksi
+        </h3>
+        <button onclick="closeModal('modalEditInspeksi')" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="formEditInspeksi" onsubmit="handleSaveEditInspeksi(event)" class="space-y-3">
+        <input type="hidden" id="editInspeksiId">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Item Fasilitas</label>
+          <input type="text" id="editInspeksiItem" readonly class="auth-input !py-2 text-xs bg-slate-800 text-slate-300">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Kondisi Fisik</label>
+          <select id="editInspeksiKondisi" class="auth-input !py-2 text-xs">
+            <option value="Baik">Baik</option>
+            <option value="Rusak">Rusak / Perlu Perbaikan</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Catatan Temuan</label>
+          <textarea id="editInspeksiCatatan" rows="3" class="auth-input !py-2 text-xs"></textarea>
+        </div>
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeModal('modalEditInspeksi')" class="role-quick-btn">Batal</button>
+          <button type="submit" class="btn-lime-pill">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       4. OFFICIAL PRINT CONTAINERS (SESUAI LAMPIRAN 1 & 2 PERMEN LHK 6/2021)
+       ====================================================================== -->
+
+  <!-- 4.1 CONTAINER CETAK LOGBOOK (LANDSCAPE - SESUAI LAMPIRAN 1) -->
+  <div id="printLogbookLandscapeContainer" class="print-container">
+    <!-- KOP Perusahaan -->
+    <div class="official-kop">
+      <img id="kopLogbookLogo" src="" class="official-kop-logo" alt="Logo">
+      <div class="official-kop-text">
+        <h2 id="kopLogbookNamaPerusahaan">PT. ETAM MANUNGGAL JAYA</h2>
+        <p id="kopLogbookAlamat">Jalan S. Parman No. 6, Kota Samarinda, Kalimantan Timur</p>
+        <p id="kopLogbookKontak">Telp: 0541-748920 &bull; Email: info@etammanunggal.co.id</p>
+      </div>
+    </div>
+
+    <!-- Judul Lampiran 1 -->
+    <div style="margin-bottom: 8px;">
+      <h3 style="font-size: 11pt; font-weight: bold;">A. Format Pencatatan dan Pelaporan</h3>
+    </div>
+
+    <!-- Tabel 11 Kolom Lampiran 1 -->
+    <table class="official-table">
+      <thead>
+        <tr>
+          <th rowspan="2" style="width: 4%;">No<br>(A)</th>
+          <th colspan="5" style="width: 50%;">MASUKNYA LIMBAH B3<br>KE TEMPAT PENYIMPANAN</th>
+          <th colspan="4" style="width: 36%;">KELUARNYA LIMBAH B3<br>DARI TEMPAT PENYIMPANAN</th>
+          <th rowspan="2" style="width: 10%;">SISA<br><br>Sisa Limbah B3 yang ada di Tempat Penyimpanan<br>(K)</th>
+        </tr>
+        <tr>
+          <th>Jenis Limbah B3 Masuk<br>(B)</th>
+          <th>Tanggal<br>(C)</th>
+          <th>Sumber Limbah B3<br>(D)</th>
+          <th>Jumlah Limbah B3 Masuk<br>(E)</th>
+          <th>Maksimal penyimpanan s/d tanggal:<br>(t=0 + 90 hr) atau *(t=0 + 365 hari)<br>(F)</th>
+          <th>Tanggal Keluar Limbah<br>(G)</th>
+          <th>Jumlah Limbah B3<br>(H)</th>
+          <th>Tujuan Penyerahan<br>(I)</th>
+          <th>Bukti Nomor Dokumen<br>(J)</th>
+        </tr>
+      </thead>
+      <tbody id="printLogbookTableBody">
+        <!-- Generated by JS -->
+      </tbody>
+    </table>
+
+    <!-- Tanda Tangan Paraf Petugas / Operator & Tanggal Sesuai Lampiran 1 -->
+    <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+      <div style="width: 250px; text-align: center; font-size: 9pt;">
+        <p><span id="printLogbookLokasi">Batuah</span>, <span id="printLogbookTanggal">20 September 2026</span></p>
+        <div id="printLogbookTtdBox" style="height: 60px; display: flex; align-items: center; justify-content: center;">
+          <!-- Signature img or paraf placeholder -->
+        </div>
+        <p style="font-weight: bold;">( <span id="printLogbookOperatorName">Petugas TPS LB3</span> )</p>
+        <p style="font-size: 8pt; color: #555;">(Paraf Petugas)</p>
+      </div>
+    </div>
+
+    <!-- Catatan Keterangan Resmi Lampiran 1 -->
+    <div style="margin-top: 10px; font-size: 7.5pt; line-height: 1.35; color: #222; border-top: 1px solid #ccc; padding-top: 6px;">
+      <p><strong>Keterangan:</strong></p>
+      <p>(1) Jika masuknya Limbah B3 tidak per hari, maka pengisian form ini disesuaikan dengan masuknya limbah ke TPS Limbah B3.</p>
+      <p>(2) Batas waktu penyimpanan di Tempat Penyimpanan Sementara Limbah B3, misal limbah jenis X sebesar 50 kg/hari masuk ke Tempat Penyimpanan tanggal 3 September 2017 (t=0), sehingga kolom F berisi 1 Desember 2017 (untuk maksimal Penyimpanan 90 hari).</p>
+      <p>(3) Manifes dapat berupa:<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;a. Manifes elektronik (Festronik)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;b. Manifes internal perusahaan jika limbah B3 diserahkan ke bagian lain (untuk dimanfaatkan/diolah dalam lingkungan perusahaan sendiri), setiap lembar harap di paraf oleh petugas yang bertanggung jawab.</p>
+    </div>
+  </div>
+
+  <!-- 4.2 CONTAINER CETAK NERACA (PORTRAIT - SESUAI LAMPIRAN 2) -->
+  <div id="printNeracaPortraitContainer" class="print-container">
+    <!-- KOP Perusahaan -->
+    <div class="official-kop">
+      <img id="kopNeracaLogo" src="" class="official-kop-logo" alt="Logo">
+      <div class="official-kop-text">
+        <h2 id="kopNeracaNamaPerusahaan">PT. ETAM MANUNGGAL JAYA</h2>
+        <p id="kopNeracaAlamat">Jalan S. Parman No. 6, Kota Samarinda, Kalimantan Timur</p>
+        <p id="kopNeracaKontak">Telp: 0541-748920 &bull; Email: info@etammanunggal.co.id</p>
+      </div>
+    </div>
+
+    <!-- Metadata Header Sesuai Lampiran 2 -->
+    <table style="width: 100%; font-size: 9pt; margin-bottom: 8px; border: none;">
+      <tr>
+        <td style="width: 25%; font-weight: bold;">Nama Perusahaan</td>
+        <td style="width: 2%;">:</td>
+        <td id="printNeracaPerusahaan" style="width: 73%; font-weight: bold;">PT. Etam Manunggal Jaya</td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold;">Bidang usaha</td>
+        <td>:</td>
+        <td id="printNeracaBidangUsaha">Pertambangan Batubara</td>
+      </tr>
+      <tr>
+        <td style="font-weight: bold;">Periode waktu</td>
+        <td>:</td>
+        <td id="printNeracaPeriode">Triwulan III (Juli - September 2026)</td>
+      </tr>
+    </table>
+
+    <!-- Tabel Neraca Sesuai Lampiran 2 -->
+    <table class="official-table" style="font-size: 8.5pt;">
+      <thead>
+        <tr>
+          <th style="width: 4%;">I</th>
+          <th style="width: 36%;">JENIS AWAL LIMBAH</th>
+          <th style="width: 18%;">JUMLAH (TON)</th>
+          <th colspan="3" style="width: 42%;">CATATAN :</th>
+        </tr>
+      </thead>
+      <tbody id="printNeracaTableA">
+        <!-- Generated by JS -->
+      </tbody>
+      <tfoot>
+        <tr style="font-weight: bold; background: #f8fafc;">
+          <td colspan="2" style="text-align: right;">TOTAL</td>
+          <td id="printNeracaTotalA" style="text-align: center;">A (+) 0.000</td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- Bagian II: Perlakuan -->
+    <table class="official-table" style="font-size: 8.5pt; margin-top: -1px;">
+      <thead>
+        <tr>
+          <th rowspan="2" style="width: 4%;">II</th>
+          <th rowspan="2" style="width: 36%;">PERLAKUAN:</th>
+          <th rowspan="2" style="width: 18%;">JUMLAH (TON)</th>
+          <th rowspan="2" style="width: 24%;">JENIS LIMBAH YANG DIKELOLA</th>
+          <th colspan="2" style="width: 18%;">PERSETUJUAN LINGKUNGAN</th>
+        </tr>
+        <tr>
+          <th>ADA</th>
+          <th>TIDAK ADA</th>
+        </tr>
+      </thead>
+      <tbody id="printNeracaTableB">
+        <!-- Generated by JS: 1. Disimpan s/d 7. Perlakuan Lainnya -->
+      </tbody>
+      <tfoot>
+        <tr style="font-weight: bold; background: #f8fafc;">
+          <td colspan="2" style="text-align: right;">TOTAL</td>
+          <td id="printNeracaTotalB" style="text-align: center;">B (-) 0.000</td>
+          <td colspan="3"></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- Bagian Ringkasan Residu, Belum Terkelola & Kinerja -->
+    <table class="official-table" style="font-size: 8.5pt; margin-top: -1px;">
+      <tbody>
+        <tr>
+          <td style="width: 40%; font-weight: bold;">RESIDU *</td>
+          <td colspan="2">C (+) <span id="printNeracaResiduC">0.000</span> TON</td>
+        </tr>
+        <tr>
+          <td style="font-weight: bold;">JUMLAH LIMBAH YANG BELUM TERKELOLA **</td>
+          <td colspan="2">D (+) <span id="printNeracaBelumD">0.000</span> TON</td>
+        </tr>
+        <tr style="font-weight: bold;">
+          <td>TOTAL JUMLAH LIMBAH YANG TERSISA</td>
+          <td colspan="2">(C+D) <span id="printNeracaTotalSisaCD">0.000</span> TON</td>
+        </tr>
+        <tr style="font-weight: bold; background: #f1f5f9;">
+          <td>KINERJA PENGELOLAAN LB3 SELAMA PERIODE</td>
+          <td colspan="2">{[A - (C+D)] / A} * 100% = <span id="printNeracaKinerjaRumus">100.00%</span></td>
+        </tr>
+        <tr>
+          <td style="font-weight: bold;">SKALA WAKTU PENAATAN</td>
+          <td colspan="2">90 / 180 / 365 Hari</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Keterangan Catatan Kaki Lampiran 2 -->
+    <div style="font-size: 7pt; line-height: 1.35; margin-top: 6px; color: #222;">
+      <p><strong>KETERANGAN:</strong></p>
+      <p>* &nbsp;<strong>RESIDU</strong> adalah jumlah limbah tersisa dari proses perlakuan seperti abu insenerator, bottom ash dan atau fly ash dari pemanfaatan sludge oil di boiler, residu dari penyimpanan oli bekas dll</p>
+      <p>** <strong>JUMLAH LIMBAH YANG BELUM TERKELOLA</strong> adalah limbah yang disimpan melebihi skala waktu penaatan.</p>
+    </div>
+
+    <!-- Box Tanda Tangan 3 Role (Sesuai Revisi #3) -->
+    <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center; font-size: 8.5pt;">
+      <!-- Operator -->
+      <div style="border: 1px solid #000; padding: 6px;">
+        <p style="font-size: 7.5pt; text-transform: uppercase;">Disusun Oleh:</p>
+        <p style="font-weight: bold;">Operator TPS LB3</p>
+        <div id="printNeracaTtdOp" style="height: 55px; display: flex; align-items: center; justify-content: center;">
+          <!-- TTD Operator -->
+        </div>
+        <p style="font-weight: bold;">( <span id="printNeracaNamaOp">Operator Lapangan</span> )</p>
+      </div>
+
+      <!-- Penanggung Jawab TPS -->
+      <div style="border: 1px solid #000; padding: 6px;">
+        <p style="font-size: 7.5pt; text-transform: uppercase;">Diperiksa Oleh:</p>
+        <p style="font-weight: bold;">Penanggung Jawab TPS</p>
+        <div id="printNeracaTtdPJ" style="height: 55px; display: flex; align-items: center; justify-content: center;">
+          <!-- TTD PJ -->
+        </div>
+        <p style="font-weight: bold;">( <span id="printNeracaNamaPJ">Hermanto</span> )</p>
+      </div>
+
+      <!-- Kepala Teknik Tambang -->
+      <div style="border: 1px solid #000; padding: 6px;">
+        <p style="font-size: 7.5pt; text-transform: uppercase;">Disahkan Oleh:</p>
+        <p style="font-weight: bold;">Kepala Teknik Tambang (KTT)</p>
+        <div id="printNeracaTtdKTT" style="height: 55px; display: flex; align-items: center; justify-content: center;">
+          <!-- TTD KTT -->
+        </div>
+        <p style="font-weight: bold;">( <span id="printNeracaNamaKTT">KTT PT EMJ</span> )</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- Application Logic JS -->
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
 </body>
 </html>
-
