@@ -1,5 +1,5 @@
 ﻿  /* ==========================================================
-     STYLESHEET — EnviroMine Monitor Air Limbah V2.1
+     STYLESHEET — EnviroMine Compliance Hub v2.1
      Perubahan: sidebar toggle, chart baru, notifikasi, laporan list
      ========================================================== */
   :root{
@@ -700,8 +700,91 @@
   .bottom-nav-item.active{color:var(--primary);font-weight:700;}
   .bottom-nav-item i{font-size:17px;}
 
+  /* ---------- Sidebar Mobile Drawer Styles ---------- */
+  .sidebar-mobile-header {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-alt);
+  }
+  .sidebar-mobile-user {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    overflow: hidden;
+  }
+  .sidebar-mobile-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .sidebar-mobile-name {
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+  }
+  .sidebar-mobile-role {
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+  }
+  .sidebar-close-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: background .12s, color .12s;
+  }
+  .sidebar-close-btn:hover {
+    background: var(--violation-bg);
+    color: var(--violation-text);
+  }
+
+  /* Backdrop untuk mobile drawer */
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 1050;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(.4,0,.2,1);
+  }
+  .sidebar-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   @media print{
-    .topbar,.sidebar,.bottom-nav,.no-print,#loading-overlay,.modal-backdrop{display:none !important;}
+    .topbar,.sidebar,.bottom-nav,.no-print,#loading-overlay,.modal-backdrop,.sidebar-backdrop{display:none !important;}
     #app{display:none !important;}
     body{background:#fff;} .main-content{padding:0;}
     #print-area{display:block !important;}
@@ -722,10 +805,37 @@
      ====================================================== */
   @media(max-width:768px){
 
-    /* Sidebar: hide, use bottom nav instead */
-    .sidebar{display:none !important;}
+    /* Sidebar Drawer di Mobile — Tampilkan semua menu sesuai Role */
+    #btn-sidebar-toggle{
+      display: flex !important;
+    }
+    .sidebar-mobile-header {
+      display: flex !important;
+    }
+    .sidebar{
+      display: flex !important;
+      flex-direction: column !important;
+      position: fixed !important;
+      top: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      width: 290px !important;
+      max-width: 85vw !important;
+      height: 100vh !important;
+      z-index: 1100 !important;
+      background: var(--surface) !important;
+      box-shadow: 0 0 25px rgba(0,0,0,.25) !important;
+      transform: translateX(-100%) !important;
+      transition: transform 0.28s cubic-bezier(.4,0,.2,1) !important;
+      padding: 0 0 4rem 0 !important;
+      overflow-y: auto !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+    .sidebar.mobile-open{
+      transform: translateX(0) !important;
+    }
     .bottom-nav{display:flex;}
-    #btn-sidebar-toggle{display:none;}
 
     /* Main content padding accounting for bottom nav */
     .main-content{

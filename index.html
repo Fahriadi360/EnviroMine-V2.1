@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>EnviroMine Monitor Air Limbah V2.1</title>
+<title>EnviroMine Compliance Hub</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -34,7 +34,7 @@
     <!-- Logo -->
     <div class="login-logo-row">
       <div class="login-brand-icon" id="login-brand-icon"><i class="fa-solid fa-droplet"></i></div>
-      <span class="login-brand-name" id="login-app-name">EnviroMine Monitor Air Limbah V2.1</span>
+      <span class="login-brand-name" id="login-app-name">EnviroMine Compliance Hub</span>
     </div>
 
     <!-- Heading -->
@@ -108,7 +108,7 @@
       <button id="btn-sidebar-toggle" title="Sembunyikan Sidebar"><i class="fa-solid fa-bars"></i></button>
       <div class="topbar-brand">
         <img id="topbar-logo" src="https://www.gstatic.com/images/branding/product/2x/sheets_48dp.png" alt="Logo">
-        <div><span class="app-name" id="topbar-appname">EnviroMine</span><span class="app-tag">Monitor Air Limbah V2.1</span></div>
+        <div><span class="app-name" id="topbar-appname">EnviroMine</span><span class="app-tag">Compliance Hub</span></div>
       </div>
       <div class="site-chip"><i class="fa-solid fa-location-dot" style="font-size:10px;"></i><span id="topbar-region">—</span></div>
       <div class="online-pill no-print"><div class="dot"></div>Online</div>
@@ -139,12 +139,29 @@
     </div>
   </header>
 
+  <!-- Backdrop Overlay untuk Mobile Drawer -->
+  <div id="sidebar-backdrop" class="sidebar-backdrop no-print"></div>
+
   <div class="app-shell">
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR / MOBILE DRAWER -->
     <nav class="sidebar no-print" id="sidebar-nav">
 
-      <div class="sidebar-section-label">UTAMA</div>
+      <!-- Mobile Drawer Header (Khusus Layar HP / Tablet) -->
+      <div class="sidebar-mobile-header">
+        <div class="sidebar-mobile-user">
+          <div class="sidebar-mobile-avatar" id="sidebar-mobile-avatar">?</div>
+          <div>
+            <div class="sidebar-mobile-name" id="sidebar-mobile-name">—</div>
+            <div class="sidebar-mobile-role" id="sidebar-mobile-role">—</div>
+          </div>
+        </div>
+        <button class="sidebar-close-btn" id="btn-sidebar-close" title="Tutup Menu">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="sidebar-section-label" id="sidebar-label-utama">UTAMA</div>
       <div class="nav-item active" data-view="dashboard" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
         <div class="nav-item-left"><i class="fa-solid fa-gauge-high"></i>Dashboard</div>
       </div>
@@ -155,7 +172,7 @@
         <div class="nav-item-left"><i class="fa-solid fa-table-list"></i>Ledger Log</div>
       </div>
 
-      <div class="sidebar-section-label">MONITORING</div>
+      <div class="sidebar-section-label" id="sidebar-label-monitoring">MONITORING</div>
       <div class="nav-item" data-view="disposisi-investigasi" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
         <div class="nav-item-left"><i class="fa-solid fa-triangle-exclamation"></i>Disposisi & Investigasi</div>
         <span class="nav-badge hidden" id="nav-badge-disposisi">0</span>
@@ -164,12 +181,12 @@
         <div class="nav-item-left"><i class="fa-solid fa-microscope"></i>Hasil Lab</div>
       </div>
 
-      <div class="sidebar-section-label">PELAPORAN</div>
+      <div class="sidebar-section-label" id="sidebar-label-pelaporan">PELAPORAN</div>
       <div class="nav-item" data-view="laporan" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
         <div class="nav-item-left"><i class="fa-solid fa-file-lines"></i>Laporan Resmi</div>
       </div>
 
-      <div class="sidebar-section-label">ADMINISTRASI</div>
+      <div class="sidebar-section-label" id="sidebar-label-administrasi">ADMINISTRASI</div>
       <div class="nav-item" data-view="master" data-roles="SUPERVISOR,MANAJEMEN,ADMIN">
         <div class="nav-item-left"><i class="fa-solid fa-database"></i>Master Data</div>
       </div>
@@ -178,8 +195,11 @@
       </div>
 
       <div style="padding:1rem 1.25rem;margin-top:.5rem;border-top:1px solid var(--border);">
-        <a href="#" id="btn-open-signature" style="display:flex;align-items:center;gap:.6rem;font-size:12.5px;font-weight:600;color:var(--text-secondary);">
+        <a href="#" id="btn-open-signature" style="display:flex;align-items:center;gap:.6rem;font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:.85rem;">
           <i class="fa-solid fa-signature"></i>Tanda Tangan Digital
+        </a>
+        <a href="#" id="btn-drawer-logout" style="display:flex;align-items:center;gap:.6rem;font-size:12.5px;font-weight:600;color:var(--violation-text);">
+          <i class="fa-solid fa-right-from-bracket"></i>Keluar Akun
         </a>
       </div>
     </nav>
@@ -190,8 +210,13 @@
       <!-- ══════════ DASHBOARD ══════════ -->
       <div id="view-dashboard" class="view-container">
         <div class="breadcrumb-row">Sistem Pemantauan <span class="chip-inline">Real-time</span></div>
-        <h1 class="page-title" id="dash-title">Dashboard</h1>
-        <p class="page-subtitle" id="dash-subtitle">Pemantauan kualitas air limbah tambang.</p>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:var(--sp-sm);">
+          <div>
+            <h1 class="page-title" id="dash-title">Dashboard</h1>
+            <p class="page-subtitle" id="dash-subtitle">Pemantauan kualitas air limbah tambang.</p>
+          </div>
+          <button class="btn btn-sm btn-outline" id="btn-refresh-dashboard" title="Segarkan Data Dashboard"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+        </div>
 
         <div class="kpi-grid-4col" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
           <div class="kpi-card">
@@ -651,8 +676,8 @@
     <div class="bottom-nav-item active" data-view="dashboard" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-gauge-high"></i>Dashboard</div>
     <div class="bottom-nav-item" data-view="form-harian" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-flask-vial"></i>Input</div>
     <div class="bottom-nav-item" data-view="log-table" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-table-list"></i>Log</div>
-    <div class="bottom-nav-item" data-view="disposisi-investigasi" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-triangle-exclamation"></i>Insiden</div>
     <div class="bottom-nav-item" data-view="laporan" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-file-lines"></i>Laporan</div>
+    <div class="bottom-nav-item" id="btn-bottom-menu" role="button" title="Buka Menu Lengkap"><i class="fa-solid fa-bars"></i>Menu</div>
   </nav>
 </div>
 

@@ -1,5 +1,5 @@
 ﻿/*************************************************************
- * JAVASCRIPT.HTML — EnviroMine Monitor Air Limbah V2.1
+ * JAVASCRIPT.HTML — EnviroMine Compliance Hub v2.1
  * Perbaikan:
  *  1. Tabel (ledger, lab, laporan) sekarang muncul setelah input
  *  2. Modal laporan: jenis dokumen mempengaruhi template, nomor sampel
@@ -19,7 +19,7 @@ const AppState = {
 const LOCALSTORAGE_DRAFT_KEY = 'enviromine_draft_daily_log';
 
 // URL Backend Google Apps Script Web App (API Endpoint)
-const BACKEND_API_URL = 'https://script.google.com/macros/s/AKfycbwBRGtS1IFaL4yBz0sviDYSdAWEB4qfo83fxSrawuQK2URtKXIfMNCJIWUiPIQqv0k/exec';
+const BACKEND_API_URL = 'https://script.google.com/macros/s/AKfycbwBRGtS1lFaL4yBz0sviDYSDAMEB4qfo83fxSrawuQK2URtKXlfMNCJIWUiPIQqv0k/exec';
 
 // ============================================================
 // 1. WRAPPER KOMUNIKASI SERVER (DUAL-MODE: GAS / GITHUB PAGES)
@@ -41,7 +41,7 @@ function hideLoadingForced() {
   if (el) el.classList.remove('active');
 }
 
-function _callServerInternal(silent, fnName, ...args) {
+async function _callServerInternal(silent, fnName, ...args) {
   if (!silent) showLoading(true);
 
   // Mode 1: Jika diakses di dalam Google Apps Script Web App
@@ -63,8 +63,9 @@ function _callServerInternal(silent, fnName, ...args) {
     });
   }
 
-  // Mode 2: Jika diakses dari GitHub Pages / Server Eksternal (REST API POST)
-  return new Promise(async (resolve, reject) => {
+  // Mode 2: Jika diakses dari GitHub Pages / Server Eksternal (REST API POST) dengan Auto-Retry
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await fetch(BACKEND_API_URL, {
         method: 'POST',
@@ -75,17 +76,28 @@ function _callServerInternal(silent, fnName, ...args) {
       if (!silent) showLoading(false);
       if (!res.success) {
         if (!silent) Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: res.error });
-        return reject(new Error(res.error));
+        throw new Error(res.error || 'Operasi gagal di server');
       }
-      resolve(res.data);
+      return res.data;
     } catch (err) {
+      // Jika percobaan pertama gagal (misal koneksi fluktuatif atau Apps Script cold-start), coba 1x lagi setelah jeda
+      if (attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
       if (!silent) {
         showLoading(false);
-        Swal.fire({ icon: 'error', title: 'Gagal Terhubung ke Server', text: err.message || String(err) });
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal Terhubung ke Server',
+          text: 'Tidak dapat menjangkau server Google Apps Script. Silakan periksa koneksi internet Anda atau coba sesaat lagi.',
+          confirmButtonText: 'Tutup',
+          confirmButtonColor: '#0F5132'
+        });
       }
-      reject(err);
+      throw err;
     }
-  });
+  }
 }
 
 function callServer(fnName, ...args) {
@@ -203,10 +215,15 @@ async function bootApp() {
   document.getElementById('view-login').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
 
+  // Muat dashboard terlebih dahulu secara stabil
   navigateTo('dashboard');
-  refreshDisposisiBadge();
-  checkDraftLocal();
-  startNotifPolling();
+
+  // Jalankan polling notifikasi & badge dengan jeda agar server GAS tidak dihujani request serentak
+  setTimeout(() => {
+    refreshDisposisiBadge();
+    checkDraftLocal();
+    startNotifPolling();
+  }, 1200);
 
   // Restore saved token
   const savedToken = localStorage.getItem('enviromine_token') || sessionStorage.getItem('enviromine_token');
@@ -288,7 +305,7 @@ function applyTheme() {
   document.documentElement.style.setProperty('--primary', primary);
   document.getElementById('topbar-appname').textContent = (AppState.config.APP_NAME || 'EnviroMine').split(' ')[0];
   document.getElementById('topbar-region').textContent = AppState.config.REGION_NAME || '';
-  document.getElementById('login-app-name').textContent = AppState.config.APP_NAME || 'EnviroMine Monitor Air Limbah V2.1';
+  document.getElementById('login-app-name').textContent = AppState.config.APP_NAME || 'EnviroMine Compliance Hub';
   const regionFooter = document.getElementById('login-region-footer');
   if (regionFooter) regionFooter.textContent = AppState.config.REGION_NAME || '';
 
@@ -320,6 +337,20 @@ function applySessionUI() {
     avatarWrap.innerHTML = `<img src="${savedAvatar}" alt="${s.namaLengkap}">`;
   } else if (avatarWrap) {
     avatarWrap.innerHTML = `<span id="user-initial">${s.namaLengkap.split(' ').map(w => w[0]).slice(0, 2).join('')}</span>`;
+  }
+
+  // Isi data header di Sidebar Mobile Drawer
+  const mobName = document.getElementById('sidebar-mobile-name');
+  const mobRole = document.getElementById('sidebar-mobile-role');
+  const mobAvatar = document.getElementById('sidebar-mobile-avatar');
+  if (mobName) mobName.textContent = s.namaLengkap;
+  if (mobRole) mobRole.textContent = s.role === 'ADMIN' ? 'ADMINISTRATOR' : roleLabel(s.role);
+  if (mobAvatar) {
+    if (savedAvatar) {
+      mobAvatar.innerHTML = `<img src="${savedAvatar}" alt="${s.namaLengkap}" style="width:100%;height:100%;object-fit:cover;">`;
+    } else {
+      mobAvatar.textContent = s.namaLengkap.split(' ').map(w => w[0]).slice(0, 2).join('');
+    }
   }
 }
 
@@ -406,6 +437,12 @@ function buildSidebarByRole() {
     const allowed = el.getAttribute('data-roles').split(',');
     el.style.display = allowed.includes(role) ? '' : 'none';
   });
+
+  // Atur seksi label di sidebar & drawer
+  const adminLabel = document.getElementById('sidebar-label-administrasi');
+  if (adminLabel) {
+    adminLabel.style.display = (role === 'OPERATOR') ? 'none' : '';
+  }
 }
 
 function buildDashboardLabelsByRole() {
@@ -453,10 +490,38 @@ function populatePondDropdowns() {
 }
 
 // ============================================================
-// 3. SIDEBAR TOGGLE — FIX BUG #4
+// 3. SIDEBAR & MOBILE DRAWER NAVIGATION
 // ============================================================
 let sidebarVisible = true;
+
+function openMobileSidebar() {
+  const sidebar = document.getElementById('sidebar-nav');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.add('mobile-open');
+  if (backdrop) backdrop.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('sidebar-nav');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (backdrop) backdrop.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
 function toggleSidebar() {
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('sidebar-nav');
+    if (sidebar && sidebar.classList.contains('mobile-open')) {
+      closeMobileSidebar();
+    } else {
+      openMobileSidebar();
+    }
+    return;
+  }
+
+  // Toggle desktop sidebar
   sidebarVisible = !sidebarVisible;
   const sidebar = document.getElementById('sidebar-nav');
   const mainContent = document.querySelector('.main-content');
@@ -473,7 +538,16 @@ function toggleSidebar() {
     toggleBtn.title = 'Tampilkan Sidebar';
   }
 }
+
 document.getElementById('btn-sidebar-toggle')?.addEventListener('click', toggleSidebar);
+document.getElementById('btn-bottom-menu')?.addEventListener('click', openMobileSidebar);
+document.getElementById('btn-sidebar-close')?.addEventListener('click', closeMobileSidebar);
+document.getElementById('sidebar-backdrop')?.addEventListener('click', closeMobileSidebar);
+document.getElementById('btn-drawer-logout')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  closeMobileSidebar();
+  document.getElementById('btn-logout').click();
+});
 
 // ============================================================
 // 3B. NAVIGASI SPA
@@ -486,6 +560,12 @@ function navigateTo(view) {
     const allowed = el.getAttribute('data-roles').split(',');
     if (!allowed.includes(AppState.session.role)) { Swal.fire('Akses Ditolak', 'Anda tidak memiliki hak akses ke modul ini.', 'warning'); return; }
   }
+
+  // Tutup mobile drawer jika sedang terbuka di layar HP
+  if (window.innerWidth <= 768) {
+    closeMobileSidebar();
+  }
+
   AppState.currentView = view;
   document.querySelectorAll('.view-container').forEach(v => v.classList.add('hidden'));
   document.getElementById('view-' + view).classList.remove('hidden');
@@ -497,7 +577,7 @@ function navigateTo(view) {
   if (view === 'log-table') refreshLogTable();
   if (view === 'disposisi-investigasi') refreshDisposisiList();
   if (view === 'lab') refreshLabTable();
-  if (view === 'laporan') { toggleReportPermissionsByRole(); refreshReportTable(); refreshLaporanList(); }
+  if (view === 'laporan') { toggleReportPermissionsByRole(); refreshLaporanList(); }
   if (view === 'master') refreshMasterData();
   if (view === 'settings') refreshSettings();
 }
@@ -588,9 +668,29 @@ async function handleNotifClick(notifId, tipe, refId) {
 // 5. DASHBOARD — FIX BUG #5: Grafik lebih menarik
 // ============================================================
 let chartInstances = {};
+let _dashCacheData = null;
+let _dashCacheTime = 0;
 
-async function refreshDashboard() {
-  const data = await callServer('apiGetDashboardSummary', AppState.token);
+async function refreshDashboard(force = false) {
+  const now = Date.now();
+  // Jika data baru diambil kurang dari 30 detik yang lalu dan bukan paksa refresh, render langsung tanpa loading
+  if (!force && _dashCacheData && (now - _dashCacheTime < 30000)) {
+    renderDashboardUI(_dashCacheData);
+    return;
+  }
+
+  try {
+    const data = await callServer('apiGetDashboardSummary', AppState.token);
+    if (data) {
+      _dashCacheData = data;
+      _dashCacheTime = Date.now();
+      renderDashboardUI(data);
+    }
+  } catch (e) {}
+}
+
+function renderDashboardUI(data) {
+  if (!data) return;
   const role = AppState.session.role;
 
   document.getElementById('kpi-value-1').textContent = data.totalHariIni;
@@ -906,7 +1006,7 @@ async function submitDailyLogPayload(payload) {
     }
     refreshDisposisiBadge();
     if (AppState.currentView === 'log-table') refreshLogTable();
-    if (AppState.currentView === 'dashboard') refreshDashboard();
+    if (AppState.currentView === 'dashboard') refreshDashboard(true);
     if (AppState.currentView === 'laporan') refreshReportTable();
   } catch (err) {
     Swal.fire('Tersimpan Sebagai Draf', 'Koneksi bermasalah. Data akan dikirim ulang otomatis.', 'info');
@@ -967,7 +1067,7 @@ async function refreshLogTable() {
 async function verifyLog(logId, status) {
   await callServer('apiVerifyDailyLog', AppState.token, logId, status);
   Swal.fire({ icon: 'success', title: 'Status Diperbarui', timer: 1500, showConfirmButton: false });
-  refreshLogTable(); refreshDashboard();
+  refreshLogTable(); refreshDashboard(true);
 }
 
 async function deleteDailyLog(logId) {
@@ -985,7 +1085,7 @@ async function deleteDailyLog(logId) {
   try {
     await callServer('apiDeleteDailyLog', AppState.token, logId);
     Swal.fire({ icon: 'success', title: 'Data Berhasil Dihapus', timer: 1500, showConfirmButton: false });
-    refreshLogTable(); refreshDashboard();
+    refreshLogTable(); refreshDashboard(true);
   } catch (err) {
     Swal.fire('Gagal Menghapus', err.message || 'Terjadi kesalahan.', 'error');
   }
@@ -1074,7 +1174,7 @@ async function updateInvestigasi(id, status) {
 async function verifyDisposisiRole(id, role) {
   await callServer('apiVerifyDisposisi', AppState.token, id, role);
   Swal.fire({ icon: 'success', title: role === 'MANAJEMEN' ? 'Insiden Ditutup (KTT)' : 'Terverifikasi SPV', timer: 1500, showConfirmButton: false });
-  refreshDisposisiList(); refreshDashboard(); refreshDisposisiBadge();
+  refreshDisposisiList(); refreshDashboard(true); refreshDisposisiBadge();
 }
 
 // ============================================================
@@ -1647,7 +1747,7 @@ async function openApproveKTTModal(reportId) {
   if (!isConfirmed) return;
   await callServer('apiApproveReportKTT', AppState.token, reportId, catatan || '');
   Swal.fire({ icon: 'success', title: 'Laporan Disetujui & Ditandatangani', text: 'Supervisor dapat mencetak laporan final.', timer: 2500, showConfirmButton: false });
-  refreshLaporanList(); refreshDashboard(); pollNotifikasi();
+  refreshLaporanList(); refreshDashboard(true); pollNotifikasi();
 }
 
 async function logReportGeneration(tipe, sig) {
@@ -1921,6 +2021,7 @@ document.getElementById('btn-export-pdf').addEventListener('click', async () => 
 // ============================================================
 // 12. TOMBOL REFRESH MANUAL
 // ============================================================
+document.getElementById('btn-refresh-dashboard')?.addEventListener('click', () => { refreshDashboard(true); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Dashboard diperbarui', showConfirmButton: false, timer: 1200 }); });
 document.getElementById('btn-refresh-ledger')?.addEventListener('click', () => { refreshLogTable(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ledger diperbarui', showConfirmButton: false, timer: 1200 }); });
 document.getElementById('btn-refresh-disposisi')?.addEventListener('click', () => { refreshDisposisiList(); refreshDisposisiBadge(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Disposisi diperbarui', showConfirmButton: false, timer: 1200 }); });
 document.getElementById('btn-refresh-lab')?.addEventListener('click', () => { refreshLabTable(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Lab diperbarui', showConfirmButton: false, timer: 1200 }); });
