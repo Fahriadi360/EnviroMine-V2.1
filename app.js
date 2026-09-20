@@ -1,2569 +1,2459 @@
-/**
- * ==========================================================================
- * ENVIROMINE MONITOR — LIMBAH B3 V1.1 (PT. ETAM MANUNGGAL JAYA)
- * Frontend Single Page Application Engine (GitHub Pages & GAS Compatible)
- * Versi Revisi V1.1.1 (Full CRUD, Lampiran 1 & 2 Print, Filter & Profile)
- * ==========================================================================
- */
+﻿/*************************************************************
+ * JAVASCRIPT.HTML — EnviroMine Compliance Hub v2.1
+ * Perbaikan:
+ *  1. Tabel (ledger, lab, laporan) sekarang muncul setelah input
+ *  2. Modal laporan: jenis dokumen mempengaruhi template, nomor sampel
+ *     di-generate SETELAH pond dipilih, kirim → SPV → KTT → download
+ *  3. Sidebar dapat di-hide (toggle)
+ *  4. Grafik dashboard lebih menarik (gradient, multi-chart, donut)
+ *  5. Notifikasi real-time ke SPV & KTT
+ *  6. LOGIN: Toggle show/hide password + desain fullscreen baru
+ *************************************************************/
 
-// Global State
-const STATE = {
-  gasApiUrl: localStorage.getItem('enviromine_gas_url') || '',
-  currentUser: null,
-  activeView: 'dashboard',
-  sidebarCollapsed: false,
-  signatureTarget: null, // { neracaId, role }
-  chartInstance: null,
-  tempProfilePhoto: null
+const AppState = {
+  token: null, session: null, config: {}, ponds: [], bakuMutu: [],
+  photos: [], currentView: 'dashboard', reportFilteredData: [],
+  selectedDailyLog: null, notifPollingInterval: null,
+  pendingReviewReport: null
 };
+const LOCALSTORAGE_DRAFT_KEY = 'enviromine_draft_daily_log';
 
-// 8 Items Checklist Fasilitas K3L TPS LB3 01 PT EMJ (Sesuai Rintek)
-const INSPEKSI_ITEMS_DEFAULT = [
-  'Alat Pemadam Api Ringan (APAR)',
-  'Fasilitas Eyewash Station',
-  'Rambu-rambu K3L & APD Wajib',
-  'Kondisi Lantai Concrete Kedap Air & Kemiringan 1-5%',
-  'Saluran Drainase Ceceran & Bak Oil Catcher (50x50x50 cm)',
-  'Penunjuk Arah Angin (Wind Sock)',
-  'Emergency Spill Kit (Absorbent Pad & Sawdust)',
-  'Kotak Pertolongan Pertama Pada Kecelakaan (P3K)'
-];
+// URL Backend Google Apps Script Web App (API Endpoint)
+const BACKEND_API_URL = 'https://script.google.com/macros/s/AKfycbwBRGtS1lFaL4yBz0sviDYSDAMEB4qfo83fxSrawuQK2URtKXlfMNCJIWUiPIQqv0k/exec';
 
-// ==========================================================================
-// 1. INITIALIZATION & DATABASE SEEDING
-// ==========================================================================
-document.addEventListener('DOMContentLoaded', () => {
-  initLocalDatabase();
-  applyCompanySettingsUI();
-  checkAuthSession();
-  updateGasStatusBadge();
-  setupGlobalShortcuts();
-});
-
-function initLocalDatabase() {
-  // 1. Master Rintek PT EMJ (9 Item Resmi Rintek)
-  if (!localStorage.getItem('db_rintek')) {
-    const defaultRintek = [
-      { kodeLimbah: 'A102d', namaLimbah: 'Aki/baterai bekas', sumber: 'Sumber tidak spesifik', karakteristik: 'Korosif, Beracun', jenisWadah: 'Palet (2x1.5m)', kapasitasWadah: 1800, satuan: 'Kg', batasSimpanHari: 90 },
-      { kodeLimbah: 'B104d', namaLimbah: 'Kemasan bekas B3', sumber: 'Sumber tidak spesifik', karakteristik: 'Beracun, Padatan mudah terbakar', jenisWadah: 'Palet (2x1.5m)', kapasitasWadah: 180, satuan: 'Kg', batasSimpanHari: 365 },
-      { kodeLimbah: 'B105d', namaLimbah: 'Minyak pelumas bekas (Oli hidrolik/mesin/gear)', sumber: 'Sumber tidak spesifik', karakteristik: 'Beracun, Cairan mudah menyala', jenisWadah: 'Drum / IBC / Tangki', kapasitasWadah: 200, satuan: 'Liter', batasSimpanHari: 90 },
-      { kodeLimbah: 'B107d', namaLimbah: 'Limbah elektronik (CRT, lampu TL, PCB)', sumber: 'Sumber tidak spesifik', karakteristik: 'Beracun, Berbahaya lingkungan', jenisWadah: 'Drum', kapasitasWadah: 200, satuan: 'Kg', batasSimpanHari: 365 },
-      { kodeLimbah: 'B109d', namaLimbah: 'Filter bekas fasilitas pencemaran udara', sumber: 'Sumber tidak spesifik', karakteristik: 'Beracun', jenisWadah: 'Drum', kapasitasWadah: 200, satuan: 'Kg', batasSimpanHari: 365 },
-      { kodeLimbah: 'B110d', namaLimbah: 'Kain majun bekas (used rags)', sumber: 'Sumber tidak spesifik', karakteristik: 'Beracun, Padatan mudah terbakar', jenisWadah: 'Drum', kapasitasWadah: 200, satuan: 'Kg', batasSimpanHari: 365 },
-      { kodeLimbah: 'B321-4', namaLimbah: 'Kemasan bekas tinta / cartridge printer', sumber: 'Sumber spesifik umum', karakteristik: 'Beracun, Berbahaya lingkungan', jenisWadah: 'Drum', kapasitasWadah: 200, satuan: 'Kg', batasSimpanHari: 365 },
-      { kodeLimbah: 'A332-1', namaLimbah: 'Sludge dari oil treatment / fasilitas penyimpanan', sumber: 'Sumber spesifik umum', karakteristik: 'Beracun, Padatan mudah menyala', jenisWadah: 'Drum', kapasitasWadah: 200, satuan: 'Kg', batasSimpanHari: 90 },
-      { kodeLimbah: 'A337-1', namaLimbah: 'Limbah klinis / medis berkarakteristik infeksius', sumber: 'Sumber spesifik umum', karakteristik: 'Infeksius', jenisWadah: 'Medical waste cold storage', kapasitasWadah: 1.5, satuan: 'Kg', batasSimpanHari: 90 }
-    ];
-    localStorage.setItem('db_rintek', JSON.stringify(defaultRintek));
-  }
-
-  // 2. Master Pihak Ketiga (PT Berkat Jaya Sukses)
-  if (!localStorage.getItem('db_pihak_ketiga')) {
-    const defaultPihakKetiga = [
-      { id: 'PK-001', namaPerusahaan: 'PT. Berkat Jaya Sukses', noIzin: 'SK.06/MENLHK/PLB3/2022', alamat: 'Jl. Trans Kalimantan Km 18, Balikpapan', kontak: '0542-882910 / info@berkatjayasukses.co.id' }
-    ];
-    localStorage.setItem('db_pihak_ketiga', JSON.stringify(defaultPihakKetiga));
-  }
-
-  // 3. Master Users (4 Roles)
-  if (!localStorage.getItem('db_users')) {
-    const defaultUsers = [
-      { id: 'USR-01', nama: 'Operator Lapangan TPS', username: 'operator', password: 'operator123', role: 'Operator', status: 'Aktif', fotoProfil: '' },
-      { id: 'USR-02', nama: 'Penanggung Jawab TPS (Hermanto)', username: 'penanggung_jawab', password: 'pj12345', role: 'Penanggung Jawab', status: 'Aktif', fotoProfil: '' },
-      { id: 'USR-03', nama: 'Administrator HSE Lingkungan', username: 'admin_hse', password: 'admin123', role: 'Admin HSE', status: 'Aktif', fotoProfil: '' },
-      { id: 'USR-04', nama: 'Kepala Teknik Tambang (KTT)', username: 'ktt', password: 'ktt12345', role: 'Manajemen / KTT', status: 'Aktif', fotoProfil: '' }
-    ];
-    localStorage.setItem('db_users', JSON.stringify(defaultUsers));
-  }
-
-  // 4. Sample Transaksi Limbah Masuk
-  if (!localStorage.getItem('db_limbah_masuk')) {
-    const sampleMasuk = [
-      {
-        id: 'IN-20260901-0830',
-        tanggalMasuk: '2026-09-01 08:30',
-        kodeLimbah: 'B105d',
-        namaLimbah: 'Minyak pelumas bekas (Oli hidrolik/mesin/gear)',
-        sumber: 'Workshop Alat Berat',
-        jumlah: 1200,
-        satuan: 'Liter',
-        fotoUrl: '',
-        statusRintek: 'Terdaftar',
-        batasSimpanHari: 90,
-        tanggalJatuhTempo: '2026-11-30',
-        operator: 'Operator Lapangan',
-        statusStok: 'Tersedia'
-      },
-      {
-        id: 'IN-20260905-1015',
-        tanggalMasuk: '2026-09-05 10:15',
-        kodeLimbah: 'A102d',
-        namaLimbah: 'Aki/baterai bekas',
-        sumber: 'Workshop Elektrik',
-        jumlah: 450,
-        satuan: 'Kg',
-        fotoUrl: '',
-        statusRintek: 'Terdaftar',
-        batasSimpanHari: 90,
-        tanggalJatuhTempo: '2026-12-04',
-        operator: 'Operator Lapangan',
-        statusStok: 'Tersedia'
-      },
-      {
-        id: 'IN-20260910-1400',
-        tanggalMasuk: '2026-09-10 14:00',
-        kodeLimbah: 'B104d',
-        namaLimbah: 'Kemasan bekas B3',
-        sumber: 'Gudang Pelumas & Kimia',
-        jumlah: 85,
-        satuan: 'Kg',
-        fotoUrl: '',
-        statusRintek: 'Terdaftar',
-        batasSimpanHari: 365,
-        tanggalJatuhTempo: '2027-09-10',
-        operator: 'Operator Lapangan',
-        statusStok: 'Tersedia'
-      },
-      {
-        id: 'IN-20260625-0900',
-        tanggalMasuk: '2026-06-25 09:00',
-        kodeLimbah: 'B109d',
-        namaLimbah: 'Filter bekas fasilitas pencemaran udara',
-        sumber: 'Area Genset Powerhouse',
-        jumlah: 70,
-        satuan: 'Kg',
-        fotoUrl: '',
-        statusRintek: 'Terdaftar',
-        batasSimpanHari: 90,
-        tanggalJatuhTempo: '2026-09-23',
-        operator: 'Operator Lapangan',
-        statusStok: 'Tersedia'
-      }
-    ];
-    localStorage.setItem('db_limbah_masuk', JSON.stringify(sampleMasuk));
-  }
-
-  // 5. Limbah Keluar
-  if (!localStorage.getItem('db_limbah_keluar')) {
-    const sampleKeluar = [
-      {
-        id: 'OUT-20260820-1100',
-        refIdMasuk: 'IN-SAMPLE-000',
-        tanggalKeluar: '2026-08-20 11:00',
-        kodeLimbah: 'B105d',
-        namaLimbah: 'Minyak pelumas bekas',
-        jumlah: 1000,
-        satuan: 'Liter',
-        tujuanPihakKetiga: 'PT. Berkat Jaya Sukses',
-        suratJalan: 'SJ/EMJ/2026/08/01',
-        manifes: 'FEST-202608-99120',
-        operator: 'Operator Lapangan',
-        status: 'Keluar Terkonfirmasi'
-      }
-    ];
-    localStorage.setItem('db_limbah_keluar', JSON.stringify(sampleKeluar));
-  }
-
-  // 6. Penanganan Khusus
-  if (!localStorage.getItem('db_penanganan_khusus')) {
-    localStorage.setItem('db_penanganan_khusus', JSON.stringify([]));
-  }
-
-  // 7. Inspeksi TPS
-  if (!localStorage.getItem('db_inspeksi')) {
-    const sampleInspeksi = [
-      { id: 'INSP-20260918-01', tanggal: '2026-09-18 09:00', itemChecklist: 'Alat Pemadam Api Ringan (APAR)', kondisi: 'Baik', catatan: 'Pressure gauge di zona hijau, pin segel utuh', operator: 'Operator Lapangan' },
-      { id: 'INSP-20260918-02', tanggal: '2026-09-18 09:05', itemChecklist: 'Fasilitas Eyewash Station', kondisi: 'Baik', catatan: 'Aliran air bersih mengalir normal', operator: 'Operator Lapangan' },
-      { id: 'INSP-20260918-03', tanggal: '2026-09-18 09:10', itemChecklist: 'Saluran Drainase Ceceran & Bak Oil Catcher (50x50x50 cm)', kondisi: 'Baik', catatan: 'Bersih dari sumbatan pasir/kotoran', operator: 'Operator Lapangan' }
-    ];
-    localStorage.setItem('db_inspeksi', JSON.stringify(sampleInspeksi));
-  }
-
-  // 8. Neraca Limbah B3
-  if (!localStorage.getItem('db_neraca')) {
-    const sampleNeraca = [
-      {
-        id: 'NERACA-2026-TW3',
-        periode: 'Triwulan III (Juli - September 2026)',
-        dataA: '2.805',
-        dataB: {
-          disimpan: '1.805',
-          dimanfaatkan: '0.000',
-          diolah: '0.000',
-          ditimbun: '0.000',
-          diserahkanPihakKetiga: '1.000',
-          ekspor: '0.000',
-          lainnya: '0.000'
-        },
-        dataC: '0.000',
-        dataD: '0.000',
-        kinerja: '100.00%',
-        status: 'Menunggu Pengesahan KTT',
-        ttdOperator: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="50"><text x="10" y="32" font-family="cursive" font-size="20" fill="black">Operator</text></svg>',
-        ttdPJ: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="50"><text x="10" y="32" font-family="cursive" font-size="20" fill="black">Hermanto</text></svg>',
-        ttdKTT: '',
-        createdAt: '2026-09-15'
-      }
-    ];
-    localStorage.setItem('db_neraca', JSON.stringify(sampleNeraca));
-  }
-
-  // 9. Audit Logs
-  if (!localStorage.getItem('db_audit')) {
-    const sampleAudit = [
-      { id: 'LOG-01', user: 'System', aksi: 'SETUP_DATABASE', timestamp: '2026-09-01 08:00', keterangan: 'Database TPS LB3 01 berhasil diinisialisasi' }
-    ];
-    localStorage.setItem('db_audit', JSON.stringify(sampleAudit));
-  }
-
-  // 10. Pengaturan Identitas Perusahaan Lengkap (Revisi #5)
-  if (!localStorage.getItem('db_settings')) {
-    const defaultSettings = {
-      namaPerusahaan: 'PT. Etam Manunggal Jaya',
-      bidangUsaha: 'Pertambangan Batubara',
-      alamatKantor: 'Jalan S. Parman No. 6, Kota Samarinda, Kalimantan Timur',
-      telpPerusahaan: '0541-748920',
-      emailPerusahaan: 'info@etammanunggal.co.id',
-      lokasiTps: 'Desa Batuah, Kec. Loa Janan, Kab. Kutai Kartanegara, Kaltim (00°48\'04,6" LS / 117°04\'41,9" BT)',
-      luasTps: '52.5 m²',
-      kapasitasMaksTon: '20',
-      pjTeknis: 'Hermanto (Direktur / PJ TPS)',
-      logoBase64: '',
-      loginBgBase64: ''
-    };
-    localStorage.setItem('db_settings', JSON.stringify(defaultSettings));
-  }
-}
-
-function applyCompanySettingsUI() {
-  const cfg = JSON.parse(localStorage.getItem('db_settings') || '{}');
-  
-  // Update Teks Identitas Perusahaan
-  if (cfg.namaPerusahaan) {
-    document.getElementById('authCompanyDisplay').textContent = cfg.namaPerusahaan;
-    document.getElementById('sidebarCompanyDisplay').textContent = cfg.namaPerusahaan;
-    document.getElementById('kopLogbookNamaPerusahaan').textContent = cfg.namaPerusahaan.toUpperCase();
-    document.getElementById('kopNeracaNamaPerusahaan').textContent = cfg.namaPerusahaan.toUpperCase();
-    document.getElementById('printNeracaPerusahaan').textContent = cfg.namaPerusahaan;
-  }
-
-  if (cfg.alamatKantor) {
-    document.getElementById('authAddressDisplay').textContent = `${cfg.alamatKantor} • TPS LB3 01`;
-    document.getElementById('kopLogbookAlamat').textContent = cfg.alamatKantor;
-    document.getElementById('kopNeracaAlamat').textContent = cfg.alamatKantor;
-  }
-
-  if (cfg.telpPerusahaan || cfg.emailPerusahaan) {
-    const kontakStr = `Telp: ${cfg.telpPerusahaan || '-'} • Email: ${cfg.emailPerusahaan || '-'}`;
-    document.getElementById('kopLogbookKontak').textContent = kontakStr;
-    document.getElementById('kopNeracaKontak').textContent = kontakStr;
-  }
-
-  if (cfg.bidangUsaha) {
-    document.getElementById('printNeracaBidangUsaha').textContent = cfg.bidangUsaha;
-  }
-
-  if (cfg.lokasiTps) {
-    document.getElementById('topbarLocationDisplay').textContent = cfg.lokasiTps.split('(')[0].trim();
-  }
-
-  if (cfg.kapasitasMaksTon) {
-    document.getElementById('statCapTonLabel').textContent = cfg.kapasitasMaksTon;
-  }
-
-  // Apply Logo Perusahaan jika ada
-  if (cfg.logoBase64) {
-    // Topbar & Sidebar Logo
-    const sbLogoImg = document.getElementById('sidebarLogoImg');
-    const sbLogoIcon = document.getElementById('sidebarLogoIcon');
-    sbLogoImg.src = cfg.logoBase64;
-    sbLogoImg.classList.remove('hidden');
-    sbLogoIcon.classList.add('hidden');
-
-    // Login screen logo
-    const lgnLogoImg = document.getElementById('loginLogoImg');
-    const lgnLogoIcon = document.getElementById('loginLogoIcon');
-    lgnLogoImg.src = cfg.logoBase64;
-    lgnLogoImg.classList.remove('hidden');
-    lgnLogoIcon.classList.add('hidden');
-
-    // KOP Cetak Logbook & Neraca
-    document.getElementById('kopLogbookLogo').src = cfg.logoBase64;
-    document.getElementById('kopNeracaLogo').src = cfg.logoBase64;
-
-    // Settings Preview
-    const prev = document.getElementById('settingsLogoPreview');
-    prev.innerHTML = `<img src="${cfg.logoBase64}" class="w-full h-full object-contain">`;
-  }
-
-  // Apply Background Halaman Login jika ada
-  if (cfg.loginBgBase64) {
-    const bgDiv = document.getElementById('authBackdropGraphic');
-    if (bgDiv) {
-      bgDiv.style.backgroundImage = `url('${cfg.loginBgBase64}')`;
-    }
-  }
-
-  // Form input fields
-  document.getElementById('setPerusahaan').value = cfg.namaPerusahaan || '';
-  document.getElementById('setBidangUsaha').value = cfg.bidangUsaha || '';
-  document.getElementById('setAlamatKantor').value = cfg.alamatKantor || '';
-  document.getElementById('setTelp').value = cfg.telpPerusahaan || '';
-  document.getElementById('setEmail').value = cfg.emailPerusahaan || '';
-  document.getElementById('setLokasi').value = cfg.lokasiTps || '';
-  document.getElementById('setLuas').value = cfg.luasTps || '';
-  document.getElementById('setKapasitas').value = cfg.kapasitasMaksTon || '';
-  document.getElementById('setPJ').value = cfg.pjTeknis || '';
-}
-
-// ==========================================================================
-// 2. AUTHENTICATION & USER PROFILE
-// ==========================================================================
-function checkAuthSession() {
-  const sessionStr = localStorage.getItem('enviromine_session');
-  if (sessionStr) {
-    try {
-      STATE.currentUser = JSON.parse(sessionStr);
-      showAppShell();
-    } catch (e) {
-      showAuthView();
-    }
+// ============================================================
+// 1. WRAPPER KOMUNIKASI SERVER (DUAL-MODE: GAS / GITHUB PAGES)
+// ============================================================
+let loadingCounter = 0;
+function showLoading(state) {
+  if (state) {
+    loadingCounter++;
   } else {
-    showAuthView();
+    loadingCounter = Math.max(0, loadingCounter - 1);
   }
+  const el = document.getElementById('loading-overlay');
+  if (el) el.classList.toggle('active', loadingCounter > 0);
 }
 
-function handleLoginSubmit(e) {
-  e.preventDefault();
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value;
-
-  const users = JSON.parse(localStorage.getItem('db_users') || '[]');
-  const foundUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-
-  if (!foundUser) {
-    showToast('Username tidak ditemukan.', 'error');
-    return;
-  }
-
-  if (foundUser.password !== password) {
-    showToast('Password salah.', 'error');
-    return;
-  }
-
-  if (foundUser.status !== 'Aktif') {
-    showToast('Akun Anda dinonaktifkan. Hubungi Admin HSE.', 'error');
-    return;
-  }
-
-  STATE.currentUser = {
-    id: foundUser.id,
-    nama: foundUser.nama,
-    username: foundUser.username,
-    role: foundUser.role,
-    fotoProfil: foundUser.fotoProfil || ''
-  };
-
-  localStorage.setItem('enviromine_session', JSON.stringify(STATE.currentUser));
-  addAuditLog(STATE.currentUser.nama, 'LOGIN', 'Berhasil login ke sistem');
-  showToast(`Selamat datang, ${STATE.currentUser.nama}!`, 'success');
-  showAppShell();
+function hideLoadingForced() {
+  loadingCounter = 0;
+  const el = document.getElementById('loading-overlay');
+  if (el) el.classList.remove('active');
 }
 
-function quickFillLogin(username, password) {
-  document.getElementById('loginUsername').value = username;
-  document.getElementById('loginPassword').value = password;
-  const btn = document.getElementById('btnLoginSubmit');
-  btn.classList.add('ring-4', 'ring-vault-lime/50');
-  setTimeout(() => {
-    btn.classList.remove('ring-4', 'ring-vault-lime/50');
-    btn.click();
-  }, 300);
-}
+async function _callServerInternal(silent, fnName, ...args) {
+  if (!silent) showLoading(true);
 
-function handleLogout() {
-  if (confirm('Apakah Anda yakin ingin keluar dari sistem?')) {
-    if (STATE.currentUser) {
-      addAuditLog(STATE.currentUser.nama, 'LOGOUT', 'Keluar dari sistem');
-    }
-    localStorage.removeItem('enviromine_session');
-    STATE.currentUser = null;
-    showAuthView();
-    showToast('Anda telah keluar dari sistem.', 'info');
-  }
-}
-
-function showAuthView() {
-  document.getElementById('authView').classList.remove('hidden');
-  document.getElementById('appShell').classList.add('hidden');
-}
-
-function showAppShell() {
-  document.getElementById('authView').classList.add('hidden');
-  document.getElementById('appShell').classList.remove('hidden');
-  
-  updateUserSessionUI();
-  navigateTo('dashboard');
-  lucide.createIcons();
-}
-
-function updateUserSessionUI() {
-  if (!STATE.currentUser) return;
-  document.getElementById('userNameDisplay').textContent = STATE.currentUser.nama;
-  document.getElementById('userRoleBadge').textContent = STATE.currentUser.role;
-
-  const avEl = document.getElementById('userAvatar');
-  if (STATE.currentUser.fotoProfil) {
-    avEl.innerHTML = `<img src="${STATE.currentUser.fotoProfil}" class="w-full h-full object-cover">`;
-  } else {
-    avEl.textContent = STATE.currentUser.nama.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-  }
-}
-
-function togglePasswordVisibility() {
-  const pwdInput = document.getElementById('loginPassword');
-  const icon = document.getElementById('eyeIcon');
-  if (pwdInput.type === 'password') {
-    pwdInput.type = 'text';
-    icon.setAttribute('data-lucide', 'eye-off');
-  } else {
-    pwdInput.type = 'password';
-    icon.setAttribute('data-lucide', 'eye');
-  }
-  lucide.createIcons();
-}
-
-function handleForgotPassword() {
-  alert('Permintaan reset password telah dikirimkan ke Admin HSE / Lingkungan.');
-  addAuditLog('User Guest', 'FORGOT_PASSWORD', 'Pengajuan reset password pengguna');
-}
-
-// --- MODAL PROFIL PENGGUNA (Revisi #7) ---
-function openModalUserProfile() {
-  if (!STATE.currentUser) return;
-  const users = JSON.parse(localStorage.getItem('db_users') || '[]');
-  const u = users.find(usr => usr.id === STATE.currentUser.id) || STATE.currentUser;
-
-  document.getElementById('profNama').value = u.nama;
-  document.getElementById('profUsername').value = u.username;
-  document.getElementById('profRole').value = u.role;
-
-  document.getElementById('profCurrentPass').value = '';
-  document.getElementById('profNewPass').value = '';
-  document.getElementById('profConfirmPass').value = '';
-  STATE.tempProfilePhoto = u.fotoProfil || '';
-
-  renderProfilePhotoPreview(STATE.tempProfilePhoto, u.nama);
-  openModal('modalUserProfile');
-}
-
-function renderProfilePhotoPreview(photoUrl, name) {
-  const container = document.getElementById('profilePhotoPreview');
-  if (photoUrl) {
-    container.innerHTML = `<img src="${photoUrl}" class="w-full h-full object-cover">`;
-  } else {
-    const initials = (name || 'User').split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
-    container.innerHTML = initials;
-  }
-}
-
-function handleProfilePhotoChange(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    STATE.tempProfilePhoto = event.target.result;
-    renderProfilePhotoPreview(STATE.tempProfilePhoto, document.getElementById('profNama').value);
-  };
-  reader.readAsDataURL(file);
-}
-
-function handleSaveUserProfile(e) {
-  e.preventDefault();
-  const nama = document.getElementById('profNama').value.trim();
-  const username = document.getElementById('profUsername').value.trim();
-  const curPass = document.getElementById('profCurrentPass').value;
-  const newPass = document.getElementById('profNewPass').value;
-  const confPass = document.getElementById('profConfirmPass').value;
-
-  const users = JSON.parse(localStorage.getItem('db_users') || '[]');
-  const idx = users.findIndex(u => u.id === STATE.currentUser.id);
-
-  if (idx === -1) {
-    showToast('Data user tidak ditemukan.', 'error');
-    return;
-  }
-
-  // Validasi jika ganti password
-  if (newPass) {
-    if (users[idx].password !== curPass) {
-      showToast('Password saat ini salah!', 'error');
-      return;
-    }
-    if (newPass.length < 5) {
-      showToast('Password baru minimal 5 karakter!', 'error');
-      return;
-    }
-    if (newPass !== confPass) {
-      showToast('Konfirmasi password baru tidak cocok!', 'error');
-      return;
-    }
-    users[idx].password = newPass;
-  }
-
-  // Update profil
-  users[idx].nama = nama;
-  users[idx].username = username;
-  if (STATE.tempProfilePhoto !== null) {
-    users[idx].fotoProfil = STATE.tempProfilePhoto;
-  }
-
-  localStorage.setItem('db_users', JSON.stringify(users));
-
-  // Update session
-  STATE.currentUser.nama = nama;
-  STATE.currentUser.username = username;
-  STATE.currentUser.fotoProfil = users[idx].fotoProfil;
-  localStorage.setItem('enviromine_session', JSON.stringify(STATE.currentUser));
-
-  updateUserSessionUI();
-  addAuditLog(nama, 'UPDATE_PROFILE', 'Memperbarui profil akun & kata sandi');
-  showToast('Profil pengguna berhasil diperbarui!', 'success');
-  closeModal('modalUserProfile');
-}
-
-// ==========================================================================
-// 3. NAVIGATION & ROUTING
-// ==========================================================================
-function navigateTo(viewName) {
-  STATE.activeView = viewName;
-
-  const views = [
-    'dashboard', 'masuk', 'keluar', 'penanganan-khusus', 
-    'inspeksi', 'logbook', 'neraca', 'rintek', 'pihak-ketiga', 'users', 'settings'
-  ];
-
-  views.forEach(v => {
-    const el = document.getElementById(`view-${v}`);
-    if (el) el.classList.add('hidden');
-
-    const nav = document.getElementById(`nav-${v}`);
-    if (nav) nav.classList.remove('active');
-  });
-
-  const targetView = document.getElementById(`view-${viewName}`);
-  if (targetView) targetView.classList.remove('hidden');
-
-  const targetNav = document.getElementById(`nav-${viewName}`);
-  if (targetNav) targetNav.classList.add('active');
-
-  switch (viewName) {
-    case 'dashboard':
-      renderDashboard();
-      break;
-    case 'masuk':
-      renderLimbahMasuk();
-      break;
-    case 'keluar':
-      renderLimbahKeluar();
-      break;
-    case 'penanganan-khusus':
-      renderPenangananKhusus();
-      break;
-    case 'inspeksi':
-      renderInspeksi();
-      break;
-    case 'logbook':
-      renderLogbook();
-      break;
-    case 'neraca':
-      renderNeraca();
-      break;
-    case 'rintek':
-      renderMasterRintek();
-      break;
-    case 'pihak-ketiga':
-      renderMasterPihakKetiga();
-      break;
-    case 'users':
-      renderMasterUsers();
-      break;
-    case 'settings':
-      renderSettingsAndAudit();
-      break;
-  }
-
-  lucide.createIcons();
-}
-
-function toggleSidebarCollapse() {
-  const sb = document.getElementById('sidebar');
-  STATE.sidebarCollapsed = !STATE.sidebarCollapsed;
-  if (STATE.sidebarCollapsed) {
-    sb.classList.add('collapsed');
-  } else {
-    sb.classList.remove('collapsed');
-  }
-}
-
-// ==========================================================================
-// 4. VIEW RENDERERS & LOGIC
-// ==========================================================================
-
-// --- 4.1 DASHBOARD ---
-function renderDashboard() {
-  const masuk = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const keluar = JSON.parse(localStorage.getItem('db_limbah_keluar') || '[]');
-  const pkList = JSON.parse(localStorage.getItem('db_penanganan_khusus') || '[]');
-  const neracaList = JSON.parse(localStorage.getItem('db_neraca') || '[]');
-  const cfg = JSON.parse(localStorage.getItem('db_settings') || '{}');
-
-  let totalStokKg = 0;
-  let h7AlertCount = 0;
-  const stokKategoriMap = {};
-  const today = new Date();
-
-  masuk.forEach(m => {
-    if (m.statusStok === 'Tersedia') {
-      const jlh = parseFloat(m.jumlah) || 0;
-      totalStokKg += jlh;
-      stokKategoriMap[m.namaLimbah] = (stokKategoriMap[m.namaLimbah] || 0) + jlh;
-
-      if (m.tanggalJatuhTempo) {
-        const tempoDate = new Date(m.tanggalJatuhTempo);
-        const diffDays = Math.ceil((tempoDate - today) / (1000 * 60 * 60 * 24));
-        if (diffDays <= 7) {
-          h7AlertCount++;
-        }
-      }
-    }
-  });
-
-  const totalStokTon = (totalStokKg / 1000).toFixed(2);
-  document.getElementById('statTotalStokKg').textContent = totalStokKg.toLocaleString('id-ID');
-  document.getElementById('statTotalStokTon').textContent = `≈ ${totalStokTon} Ton`;
-
-  // Kapasitas TPS
-  const kapasitasTon = parseFloat(cfg.kapasitasMaksTon) || 20;
-  const kapasitasMaksKg = kapasitasTon * 1000;
-  const persenKapasitas = Math.min(100, ((totalStokKg / kapasitasMaksKg) * 100)).toFixed(1);
-  document.getElementById('statPersenKapasitas').textContent = `${persenKapasitas}%`;
-
-  const bar = document.getElementById('statProgressBar');
-  const badgeKapasitas = document.getElementById('statKapasitasStatus');
-  bar.style.width = `${persenKapasitas}%`;
-
-  if (persenKapasitas >= 100) {
-    bar.className = 'bg-rose-500 h-full rounded-full';
-    badgeKapasitas.className = 'badge-status badge-red';
-    badgeKapasitas.textContent = 'Penuh (100%)';
-  } else if (persenKapasitas >= 80) {
-    bar.className = 'bg-amber-500 h-full rounded-full';
-    badgeKapasitas.className = 'badge-status badge-yellow';
-    badgeKapasitas.textContent = 'Peringatan ≥80%';
-  } else {
-    bar.className = 'bg-vault-lime h-full rounded-full';
-    badgeKapasitas.className = 'badge-status badge-green';
-    badgeKapasitas.textContent = 'Aman (<80%)';
-  }
-
-  // Alert H-7
-  document.getElementById('statAlertH7Count').textContent = h7AlertCount;
-  const alertBanner = document.getElementById('complianceAlertBanner');
-  if (h7AlertCount > 0) {
-    alertBanner.classList.remove('hidden');
-    document.getElementById('complianceAlertText').textContent = 
-      `Terdapat ${h7AlertCount} item limbah B3 di TPS 01 yang sisa masa simpannya ≤ 7 hari sebelum jatuh tempo. Segera jadwalkan pengangkutan ke pihak ketiga!`;
-  } else {
-    alertBanner.classList.add('hidden');
-  }
-
-  // Pending Approval
-  const pendingPK = pkList.filter(p => p.status === 'Pending').length;
-  const pendingNeraca = neracaList.filter(n => n.status !== 'Final').length;
-  document.getElementById('statPendingApproval').textContent = pendingPK + pendingNeraca;
-  document.getElementById('badgePendingPK').textContent = pendingPK;
-
-  // Breakdown Kategori
-  const katContainer = document.getElementById('stokKategoriList');
-  katContainer.innerHTML = '';
-  const rintek = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-  document.getElementById('dashRintekCountBadge').textContent = `${rintek.length} Terdaftar`;
-
-  rintek.slice(0, 5).forEach(r => {
-    const currentStok = stokKategoriMap[r.namaLimbah] || 0;
-    const itemEl = document.createElement('div');
-    itemEl.className = 'flex items-center justify-between p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs';
-    itemEl.innerHTML = `
-      <div class="overflow-hidden pr-2">
-        <p class="font-semibold text-slate-200 truncate">${r.namaLimbah}</p>
-        <span class="text-[10px] text-sky-400 font-mono">${r.kodeLimbah} &bull; ${r.karakteristik}</span>
-      </div>
-      <div class="text-right shrink-0">
-        <p class="font-bold text-white font-mono">${currentStok.toLocaleString('id-ID')} ${r.satuan}</p>
-        <span class="text-[10px] text-slate-400">Max ${r.batasSimpanHari} hari</span>
-      </div>
-    `;
-    katContainer.appendChild(itemEl);
-  });
-
-  // Render Recent Transactions
-  const recentTable = document.getElementById('dashboardRecentTableBody');
-  recentTable.innerHTML = '';
-  const recentItems = masuk.slice(-5).reverse();
-
-  if (recentItems.length === 0) {
-    recentTable.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-slate-500">Belum ada transaksi limbah.</td></tr>`;
-  } else {
-    recentItems.forEach(item => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td class="font-mono text-sky-400 font-medium">${item.id}</td>
-        <td>
-          <div class="font-semibold text-white">${item.namaLimbah}</div>
-          <span class="text-xs text-slate-400 font-mono">${item.kodeLimbah}</span>
-        </td>
-        <td class="font-mono font-bold">${item.jumlah} ${item.satuan}</td>
-        <td>
-          <span class="badge-status ${item.statusRintek === 'Terdaftar' ? 'badge-green' : 'badge-yellow'}">
-            ${item.statusRintek}
-          </span>
-        </td>
-        <td>
-          <span class="badge-status ${item.statusStok === 'Tersedia' ? 'badge-lime' : 'badge-blue'}">
-            ${item.statusStok}
-          </span>
-        </td>
-        <td class="text-slate-400">${item.operator}</td>
-      `;
-      recentTable.appendChild(tr);
+  // Mode 1: Jika diakses di dalam Google Apps Script Web App
+  if (typeof google !== 'undefined' && google.script && google.script.run && typeof google.script.run[fnName] === 'function') {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!silent) showLoading(false);
+          resolve(res);
+        })
+        .withFailureHandler(err => {
+          if (!silent) {
+            showLoading(false);
+            Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: err.message || String(err) });
+          }
+          reject(err);
+        })
+        [fnName](...args);
     });
   }
 
-  renderTimbulanChart(masuk, keluar);
+  // Mode 2: Jika diakses dari GitHub Pages / Server Eksternal (REST API POST) dengan Auto-Retry
+  const maxAttempts = 2;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(BACKEND_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: fnName, args: args })
+      });
+      const res = await response.json();
+      if (!silent) showLoading(false);
+      if (!res.success) {
+        if (!silent) Swal.fire({ icon: 'error', title: 'Terjadi Kesalahan', text: res.error });
+        throw new Error(res.error || 'Operasi gagal di server');
+      }
+      return res.data;
+    } catch (err) {
+      // Jika percobaan pertama gagal (misal koneksi fluktuatif atau Apps Script cold-start), coba 1x lagi setelah jeda
+      if (attempt < maxAttempts) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
+      if (!silent) {
+        showLoading(false);
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal Terhubung ke Server',
+          text: 'Tidak dapat menjangkau server Google Apps Script. Silakan periksa koneksi internet Anda atau coba sesaat lagi.',
+          confirmButtonText: 'Tutup',
+          confirmButtonColor: '#0F5132'
+        });
+      }
+      throw err;
+    }
+  }
 }
 
-function renderTimbulanChart(masuk, keluar) {
-  const ctx = document.getElementById('timbulanChart');
-  if (!ctx) return;
+function callServer(fnName, ...args) {
+  return _callServerInternal(false, fnName, ...args);
+}
 
-  if (STATE.chartInstance) {
-    STATE.chartInstance.destroy();
+function callServerSilent(fnName, ...args) {
+  return _callServerInternal(true, fnName, ...args);
+}
+
+// ============================================================
+// 2. AUTENTIKASI
+// ============================================================
+document.getElementById('form-login').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  try {
+    const session = await callServer('apiLogin', username, password);
+    if (session && (username.toLowerCase() === 'admin' || session.role === 'ADMIN')) {
+      session.role = 'ADMIN';
+    }
+    AppState.token = session.token; AppState.session = session;
+    const remember = document.getElementById('login-remember').checked;
+    (remember ? localStorage : sessionStorage).setItem('enviromine_token', session.token);
+    await bootApp();
+  } catch (err) {}
+});
+
+/* ── TAMBAHAN LOGIN: Toggle show/hide password ── */
+document.getElementById('login-pw-toggle')?.addEventListener('click', function () {
+  const pwInput = document.getElementById('login-password');
+  const eyeIcon = document.getElementById('login-pw-eye-icon');
+  const isPassword = pwInput.type === 'password';
+  pwInput.type = isPassword ? 'text' : 'password';
+  eyeIcon.className = isPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+  this.setAttribute('title', isPassword ? 'Sembunyikan password' : 'Tampilkan password');
+});
+
+/* ── TAMBAHAN LOGIN: Lupa kata sandi ── */
+document.getElementById('login-forgot-link')?.addEventListener('click', async function (e) {
+  e.preventDefault();
+  const inputUsername = document.getElementById('login-username')?.value.trim() || '';
+
+  const { value: targetUser } = await Swal.fire({
+    title: 'Pemulihan Kata Sandi',
+    html: `
+      <div style="text-align:left;font-size:13px;line-height:1.6;color:#334155;">
+        <p style="margin-bottom:10px;">Masukkan username akun Anda untuk verifikasi identitas:</p>
+        <div style="margin-bottom:12px;">
+          <input id="swal-forgot-user" class="swal2-input" style="width:100%;margin:0;box-sizing:border-box;" placeholder="Username akun Anda" value="${inputUsername}">
+        </div>
+        <div style="background:#F1F5F9;border-left:4px solid #0F5132;padding:10px 12px;border-radius:4px;font-size:12px;color:#475569;">
+          <b style="color:#0F5132;"><i class="fa-solid fa-shield-halved me-1"></i> Keamanan Akun:</b><br>
+          Untuk menjaga integritas rekaman kepatuhan dan audit trail KTT, pemulihan kata sandi dilakukan secara terverifikasi melalui <b>Administrator Sistem</b> atau <b>Supervisor Lingkungan</b>.
+        </div>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: '<i class="fa-solid fa-headset me-1"></i> Bantuan Reset',
+    cancelButtonText: 'Tutup',
+    confirmButtonColor: '#0F5132',
+    focusConfirm: false,
+    preConfirm: () => {
+      const u = document.getElementById('swal-forgot-user')?.value.trim();
+      if (!u) {
+        Swal.showValidationMessage('Silakan masukkan username akun Anda');
+        return false;
+      }
+      return u;
+    }
+  });
+
+  if (targetUser) {
+    Swal.fire({
+      icon: 'info',
+      title: 'Permintaan Tercatat',
+      html: `
+        <div style="font-size:13px;line-height:1.6;color:#334155;text-align:left;">
+          <p>Akun yang diminta: <b>${targetUser}</b></p>
+          <p>Silakan hubungi <b>Administrator Sistem</b> atau <b>Supervisor Lingkungan</b> di Site untuk verifikasi akun dan aktivasi kata sandi baru.</p>
+          <div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:6px;padding:10px 12px;font-size:12px;color:#92400E;margin-top:12px;">
+            <b><i class="fa-solid fa-key me-1"></i> Password Standar:</b><br>
+            Password default setelah di-reset oleh sistem/admin adalah <code>ganti123</code> atau <code>demo123</code>.
+          </div>
+        </div>
+      `,
+      confirmButtonColor: '#0F5132',
+      confirmButtonText: 'Saya Mengerti'
+    });
+  }
+});
+
+document.getElementById('btn-logout').addEventListener('click', async function (e) {
+  e.preventDefault();
+  if (AppState.notifPollingInterval) clearInterval(AppState.notifPollingInterval);
+  await callServer('apiLogout', AppState.token);
+  localStorage.removeItem('enviromine_token'); sessionStorage.removeItem('enviromine_token');
+  location.reload();
+});
+
+async function bootApp() {
+  const data = await callServer('apiGetInitialAppData', AppState.token);
+  AppState.session = data.session; AppState.config = data.config;
+  AppState.ponds = data.ponds; AppState.bakuMutu = data.bakuMutu;
+
+  if (AppState.session && (AppState.session.username?.toLowerCase() === 'admin' || AppState.session.role === 'ADMIN')) {
+    AppState.session.role = 'ADMIN';
   }
 
-  const labels = ['Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober'];
-  const dataMasuk = [1400, 1950, 2200, 1850, 2450, 2100];
-  const dataKeluar = [1000, 1500, 1800, 1600, 2000, 1900];
+  applyTheme(); applySessionUI(); populatePondDropdowns();
+  buildSidebarByRole(); buildDashboardLabelsByRole();
 
-  STATE.chartInstance = new Chart(ctx, {
+  document.getElementById('view-login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  // Muat dashboard terlebih dahulu secara stabil
+  navigateTo('dashboard');
+
+  // Jalankan polling notifikasi & badge dengan jeda agar server GAS tidak dihujani request serentak
+  setTimeout(() => {
+    refreshDisposisiBadge();
+    checkDraftLocal();
+    startNotifPolling();
+  }, 1200);
+
+  // Restore saved token
+  const savedToken = localStorage.getItem('enviromine_token') || sessionStorage.getItem('enviromine_token');
+  if (savedToken && !AppState.token) AppState.token = savedToken;
+}
+
+function normalizeImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  url = url.trim().replace(/^['"]|['"]$/g, '');
+  if (!url) return '';
+  // Convert Google Drive sharing URLs to direct image CDN URLs
+  if (url.includes('drive.google.com') || url.includes('drive.usercontent.google.com')) {
+    const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch && fileIdMatch[1]) {
+      return 'https://lh3.googleusercontent.com/d/' + fileIdMatch[1] + '=w1920';
+    }
+  }
+  return url;
+}
+
+function applyLoginLogo(logoUrl) {
+  const iconEl = document.getElementById('login-brand-icon');
+  if (iconEl && logoUrl) {
+    const cleanUrl = normalizeImageUrl(logoUrl);
+    iconEl.innerHTML = `<img src="${cleanUrl}" alt="Logo" style="width:100%;height:100%;object-fit:contain;border-radius:50%;">`;
+  }
+}
+
+function applyLoginBg(bgUrl) {
+  if (!bgUrl) return;
+  const cleanUrl = normalizeImageUrl(bgUrl);
+  if (!cleanUrl) return;
+
+  const bgImgEl = document.getElementById('login-bg-image');
+  if (bgImgEl) {
+    bgImgEl.style.setProperty('background-image', `url("${cleanUrl}")`, 'important');
+  }
+  const loginView = document.getElementById('view-login');
+  if (loginView) {
+    loginView.style.setProperty('background-image', `url("${cleanUrl}")`, 'important');
+    loginView.style.setProperty('background-size', 'cover', 'important');
+    loginView.style.setProperty('background-position', 'center center', 'important');
+    loginView.style.setProperty('background-repeat', 'no-repeat', 'important');
+  }
+}
+
+function formatDisplayDate(val) {
+  if (!val) return '-';
+  const s = String(val).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m) return m[1];
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  return s;
+}
+
+function formatDisplayTime(val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (s.includes('T')) {
+    const timePart = s.split('T')[1];
+    return timePart ? timePart.slice(0, 5) : '';
+  }
+  return s.slice(0, 5);
+}
+
+function formatDisplayMonth(val) {
+  if (!val) return '-';
+  const s = String(val).trim();
+  const m = s.match(/^(\d{4}-\d{2})/);
+  if (m) return m[1];
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 7);
+  return s;
+}
+
+function applyTheme() {
+  const primary = AppState.config.PRIMARY_COLOR || '#0F5132';
+  document.documentElement.style.setProperty('--primary', primary);
+  document.getElementById('topbar-appname').textContent = (AppState.config.APP_NAME || 'EnviroMine').split(' ')[0];
+  document.getElementById('topbar-region').textContent = AppState.config.REGION_NAME || '';
+  document.getElementById('login-app-name').textContent = AppState.config.APP_NAME || 'EnviroMine Compliance Hub';
+  const regionFooter = document.getElementById('login-region-footer');
+  if (regionFooter) regionFooter.textContent = AppState.config.REGION_NAME || '';
+
+  if (AppState.config.LOGO_URL) {
+    document.getElementById('topbar-logo').src = AppState.config.LOGO_URL;
+    localStorage.setItem('enviromine_logo_url', AppState.config.LOGO_URL);
+    applyLoginLogo(AppState.config.LOGO_URL);
+  }
+  if (AppState.config.LOGIN_BG_URL) {
+    localStorage.setItem('enviromine_login_bg', AppState.config.LOGIN_BG_URL);
+    applyLoginBg(AppState.config.LOGIN_BG_URL);
+  }
+}
+
+function applySessionUI() {
+  const s = AppState.session;
+  document.getElementById('user-name').textContent = s.namaLengkap;
+  const roleEl = document.getElementById('user-role');
+  if (s.role === 'ADMIN') {
+    roleEl.innerHTML = '<span class="badge badge-role admin-role">ADMINISTRATOR</span>';
+  } else {
+    roleEl.textContent = roleLabel(s.role);
+  }
+
+  // Cek jika pengguna memiliki foto avatar tersimpan
+  const avatarWrap = document.getElementById('user-avatar-wrap');
+  const savedAvatar = localStorage.getItem('enviromine_avatar_' + s.username);
+  if (savedAvatar && avatarWrap) {
+    avatarWrap.innerHTML = `<img src="${savedAvatar}" alt="${s.namaLengkap}">`;
+  } else if (avatarWrap) {
+    avatarWrap.innerHTML = `<span id="user-initial">${s.namaLengkap.split(' ').map(w => w[0]).slice(0, 2).join('')}</span>`;
+  }
+
+  // Isi data header di Sidebar Mobile Drawer
+  const mobName = document.getElementById('sidebar-mobile-name');
+  const mobRole = document.getElementById('sidebar-mobile-role');
+  const mobAvatar = document.getElementById('sidebar-mobile-avatar');
+  if (mobName) mobName.textContent = s.namaLengkap;
+  if (mobRole) mobRole.textContent = s.role === 'ADMIN' ? 'ADMINISTRATOR' : roleLabel(s.role);
+  if (mobAvatar) {
+    if (savedAvatar) {
+      mobAvatar.innerHTML = `<img src="${savedAvatar}" alt="${s.namaLengkap}" style="width:100%;height:100%;object-fit:cover;">`;
+    } else {
+      mobAvatar.textContent = s.namaLengkap.split(' ').map(w => w[0]).slice(0, 2).join('');
+    }
+  }
+}
+
+// Inisialisasi awal tema dan logo dari cache lokal saat halaman pertama dimuat
+(function initStartupCache() {
+  const cachedLogo = localStorage.getItem('enviromine_logo_url');
+  if (cachedLogo) applyLoginLogo(cachedLogo);
+  const cachedBg = localStorage.getItem('enviromine_login_bg');
+  if (cachedBg) applyLoginBg(cachedBg);
+
+  const savedTheme = localStorage.getItem('enviromine_theme') || 'light';
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-theme');
+    const icon = document.getElementById('theme-toggle-icon');
+    if (icon) icon.className = 'fa-solid fa-sun';
+  }
+
+  // Pre-fetch konfigurasi publik server tanpa login (background login, logo, nama app)
+  function handlePublicConfig(pub) {
+    if (!pub) return;
+    if (pub.APP_NAME) {
+      const el = document.getElementById('login-app-name');
+      if (el) el.textContent = pub.APP_NAME;
+    }
+    if (pub.REGION_NAME) {
+      const el = document.getElementById('login-region-footer');
+      if (el) el.textContent = pub.REGION_NAME;
+    }
+    if (pub.PRIMARY_COLOR) {
+      document.documentElement.style.setProperty('--primary', pub.PRIMARY_COLOR);
+    }
+    if (pub.LOGO_URL) {
+      localStorage.setItem('enviromine_logo_url', pub.LOGO_URL);
+      applyLoginLogo(pub.LOGO_URL);
+    }
+    if (pub.LOGIN_BG_URL) {
+      localStorage.setItem('enviromine_login_bg', pub.LOGIN_BG_URL);
+      applyLoginBg(pub.LOGIN_BG_URL);
+    }
+  }
+
+  try {
+    if (typeof google !== 'undefined' && google.script && google.script.run && typeof google.script.run.apiGetPublicConfig === 'function') {
+      google.script.run
+        .withSuccessHandler(handlePublicConfig)
+        .withFailureHandler(function () {})
+        .apiGetPublicConfig();
+    } else if (BACKEND_API_URL) {
+      fetch(BACKEND_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'apiGetPublicConfig', args: [] })
+      })
+      .then(r => r.json())
+      .then(res => { if (res && res.success) handlePublicConfig(res.data); })
+      .catch(() => {});
+    }
+  } catch (e) {}
+})();
+
+// Listener tombol ganti tema gelap / terang
+document.getElementById('btn-theme-toggle')?.addEventListener('click', function () {
+  const isDark = document.body.classList.toggle('dark-theme');
+  localStorage.setItem('enviromine_theme', isDark ? 'dark' : 'light');
+  const icon = document.getElementById('theme-toggle-icon');
+  if (icon) icon.className = isDark ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+  this.title = isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap';
+});
+
+function roleLabel(role) {
+  return {
+    OPERATOR: 'Operator Lapangan',
+    SUPERVISOR: 'Supervisor Lingkungan',
+    MANAJEMEN: 'Kepala Teknik Tambang (KTT)',
+    ADMIN: 'Administrator Sistem'
+  }[role] || role;
+}
+
+function buildSidebarByRole() {
+  const role = AppState.session.role;
+  document.querySelectorAll('[data-roles]').forEach(el => {
+    // ADMIN melihat semua menu
+    if (role === 'ADMIN') { el.style.display = ''; return; }
+    const allowed = el.getAttribute('data-roles').split(',');
+    el.style.display = allowed.includes(role) ? '' : 'none';
+  });
+
+  // Atur seksi label di sidebar & drawer
+  const adminLabel = document.getElementById('sidebar-label-administrasi');
+  if (adminLabel) {
+    adminLabel.style.display = (role === 'OPERATOR') ? 'none' : '';
+  }
+}
+
+function buildDashboardLabelsByRole() {
+  const role = AppState.session.role;
+  const cfg = {
+    OPERATOR: { title: 'Dashboard Ringkas Operator', sub: 'Ringkasan tugas sampling harian Anda di lapangan.', k1: 'Sampling Hari Ini', k2: 'Pelanggaran Aktif', k3: 'Disposisi Terbuka', k4: 'Compliance Rate' },
+    SUPERVISOR: { title: 'Dashboard Kepatuhan Lingkungan', sub: 'Pemantauan kualitas air kolam pengendap sedimen & deteksi pelanggaran baku mutu real-time.', k1: 'Sampling Hari Ini', k2: 'Pelanggaran Aktif', k3: 'Laporan Menunggu Review', k4: 'Compliance Rate (Bulanan)' },
+    MANAJEMEN: { title: 'Dashboard Eksekutif Kepala Teknik Tambang', sub: 'Ringkasan otoritas kepatuhan baku mutu air limbah, audit trail terpadu, dan pengesahan dokumen resmi berjenjang.', k1: 'Sampling Hari Ini', k2: 'Pelanggaran Aktif Kritis', k3: 'Otorisasi KTT Tertunda', k4: 'Indeks Kepatuhan' },
+    ADMIN: { title: 'Dashboard Administrator Sistem', sub: 'Akses penuh ke seluruh fitur sistem pemantauan. Kelola data, pengguna, dan konfigurasi aplikasi.', k1: 'Sampling Hari Ini', k2: 'Pelanggaran Aktif', k3: 'Laporan Tertunda', k4: 'Compliance Rate' }
+  }[role] || { title: 'Dashboard', sub: '', k1: 'Sampling', k2: 'Pelanggaran', k3: 'Tertunda', k4: 'Compliance' };
+  document.getElementById('dash-title').textContent = cfg.title;
+  document.getElementById('dash-subtitle').textContent = cfg.sub;
+  document.getElementById('kpi-label-1').textContent = cfg.k1;
+  document.getElementById('kpi-label-2').textContent = cfg.k2;
+  document.getElementById('kpi-label-3').textContent = cfg.k3;
+  document.getElementById('kpi-label-4').textContent = cfg.k4;
+  document.getElementById('panel-operator-cta').classList.toggle('hidden', role !== 'OPERATOR');
+  document.getElementById('panel-operator-riwayat').classList.toggle('hidden', role !== 'OPERATOR');
+  document.getElementById('panel-ktt-approval').classList.toggle('hidden', role !== 'MANAJEMEN');
+}
+
+function toggleReportPermissionsByRole() {
+  const role = AppState.session.role;
+  const isOperator = role === 'OPERATOR';
+  // ADMIN dan peran lain di atas OPERATOR bisa lihat semua
+  document.querySelectorAll('.spv-manajemen-only').forEach(el => el.classList.toggle('hidden', isOperator));
+  document.getElementById('rep-operator-note')?.classList.toggle('hidden', !isOperator);
+}
+
+function populatePondDropdowns() {
+  ['fh-pond', 'filter-pond', 'lab-pond', 'rep-pond'].forEach(id => {
+    const el = document.getElementById(id); if (!el) return;
+    const keepFirst = el.id === 'filter-pond' || el.id === 'rep-pond';
+    el.innerHTML = (keepFirst && el.querySelector('option')) ? el.querySelector('option').outerHTML : '';
+    AppState.ponds.forEach(p => { el.innerHTML += `<option value="${p.Pond_ID}">${p.Nama_Pond} (${p.Pond_ID})</option>`; });
+  });
+
+  const repAreaEl = document.getElementById('rep-area-kode-select');
+  if (repAreaEl) {
+    repAreaEl.innerHTML = '<option value="">-- Pilih Settling Pond --</option>';
+    AppState.ponds.forEach(p => {
+      repAreaEl.innerHTML += `<option value="${p.Pond_ID}" data-nama="${p.Nama_Pond}">${p.Pond_ID} — ${p.Nama_Pond}</option>`;
+    });
+  }
+}
+
+// ============================================================
+// 3. SIDEBAR & MOBILE DRAWER NAVIGATION
+// ============================================================
+let sidebarVisible = true;
+
+function openMobileSidebar() {
+  const sidebar = document.getElementById('sidebar-nav');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.add('mobile-open');
+  if (backdrop) backdrop.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('sidebar-nav');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (backdrop) backdrop.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function toggleSidebar() {
+  if (window.innerWidth <= 768) {
+    const sidebar = document.getElementById('sidebar-nav');
+    if (sidebar && sidebar.classList.contains('mobile-open')) {
+      closeMobileSidebar();
+    } else {
+      openMobileSidebar();
+    }
+    return;
+  }
+
+  // Toggle desktop sidebar
+  sidebarVisible = !sidebarVisible;
+  const sidebar = document.getElementById('sidebar-nav');
+  const mainContent = document.querySelector('.main-content');
+  const toggleBtn = document.getElementById('btn-sidebar-toggle');
+  if (sidebarVisible) {
+    sidebar.classList.remove('sidebar-hidden');
+    mainContent.classList.remove('content-full');
+    toggleBtn.innerHTML = '<i class="fa-solid fa-bars"></i>';
+    toggleBtn.title = 'Sembunyikan Sidebar';
+  } else {
+    sidebar.classList.add('sidebar-hidden');
+    mainContent.classList.add('content-full');
+    toggleBtn.innerHTML = '<i class="fa-solid fa-bars-staggered"></i>';
+    toggleBtn.title = 'Tampilkan Sidebar';
+  }
+}
+
+document.getElementById('btn-sidebar-toggle')?.addEventListener('click', toggleSidebar);
+document.getElementById('btn-bottom-menu')?.addEventListener('click', openMobileSidebar);
+document.getElementById('btn-sidebar-close')?.addEventListener('click', closeMobileSidebar);
+document.getElementById('sidebar-backdrop')?.addEventListener('click', closeMobileSidebar);
+document.getElementById('btn-drawer-logout')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  closeMobileSidebar();
+  document.getElementById('btn-logout').click();
+});
+
+// ============================================================
+// 3B. NAVIGASI SPA
+// ============================================================
+document.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => navigateTo(el.getAttribute('data-view'))));
+
+function navigateTo(view) {
+  const el = document.querySelector(`.nav-item[data-view="${view}"], .bottom-nav-item[data-view="${view}"]`);
+  if (el && el.hasAttribute('data-roles') && AppState.session.role !== 'ADMIN') {
+    const allowed = el.getAttribute('data-roles').split(',');
+    if (!allowed.includes(AppState.session.role)) { Swal.fire('Akses Ditolak', 'Anda tidak memiliki hak akses ke modul ini.', 'warning'); return; }
+  }
+
+  // Tutup mobile drawer jika sedang terbuka di layar HP
+  if (window.innerWidth <= 768) {
+    closeMobileSidebar();
+  }
+
+  AppState.currentView = view;
+  document.querySelectorAll('.view-container').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + view).classList.remove('hidden');
+  document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll(`[data-view="${view}"]`).forEach(n => n.classList.add('active'));
+
+  if (view === 'dashboard') refreshDashboard();
+  if (view === 'form-harian') prefillFormHarian();
+  if (view === 'log-table') refreshLogTable();
+  if (view === 'disposisi-investigasi') refreshDisposisiList();
+  if (view === 'lab') refreshLabTable();
+  if (view === 'laporan') { toggleReportPermissionsByRole(); refreshLaporanList(); }
+  if (view === 'master') refreshMasterData();
+  if (view === 'settings') refreshSettings();
+}
+
+async function refreshDisposisiBadge() {
+  try {
+    const rows = await callServerSilent('apiGetDisposisiList', AppState.token, {});
+    const openCount = (rows || []).filter(r => r.Status_Penanganan !== 'RESOLVED').length;
+    const badge = document.getElementById('nav-badge-disposisi');
+    if (badge) {
+      badge.textContent = openCount;
+      badge.classList.toggle('hidden', openCount === 0);
+    }
+    const dot = document.getElementById('bell-dot');
+    if (dot) dot.style.display = openCount > 0 ? 'block' : 'none';
+  } catch (e) {}
+}
+
+// ============================================================
+// 4. NOTIFIKASI REAL-TIME
+// ============================================================
+function startNotifPolling() {
+  pollNotifikasi();
+  AppState.notifPollingInterval = setInterval(pollNotifikasi, 60000);
+}
+
+async function pollNotifikasi() {
+  try {
+    const notifs = await callServerSilent('apiGetNotifikasi', AppState.token);
+    updateBellBadge((notifs || []).length);
+    AppState.notifCache = notifs || [];
+  } catch (e) {}
+}
+
+function updateBellBadge(count) {
+  const bellDot = document.getElementById('bell-dot');
+  const bellCount = document.getElementById('bell-count');
+  if (bellDot) bellDot.style.display = count > 0 ? 'block' : 'none';
+  if (bellCount) { bellCount.textContent = count; bellCount.classList.toggle('hidden', count === 0); }
+}
+
+document.querySelector('.bell-btn')?.addEventListener('click', showNotifPanel);
+
+function showNotifPanel() {
+  const notifs = AppState.notifCache || [];
+  if (!notifs.length) {
+    Swal.fire({ icon: 'info', title: 'Tidak Ada Notifikasi', text: 'Semua notifikasi sudah dibaca.', timer: 1800, showConfirmButton: false });
+    return;
+  }
+  const html = notifs.map(n => `
+    <div class="notif-item" onclick="handleNotifClick('${n.Notif_ID}','${n.Tipe}','${n.Ref_ID}')">
+      <div class="notif-judul">${n.Judul}</div>
+      <div class="notif-pesan">${n.Pesan}</div>
+    </div>`).join('');
+  Swal.fire({
+    title: '🔔 Notifikasi',
+    html: `<div class="notif-panel">${html}</div>`,
+    showCancelButton: true,
+    confirmButtonText: 'Tandai Semua Dibaca',
+    cancelButtonText: 'Tutup',
+    width: '500px'
+  }).then(async r => {
+    if (r.isConfirmed) {
+      await callServer('apiMarkAllNotifRead', AppState.token);
+      AppState.notifCache = [];
+      updateBellBadge(0);
+    }
+  });
+}
+
+async function handleNotifClick(notifId, tipe, refId) {
+  await callServer('apiMarkNotifRead', AppState.token, notifId);
+  Swal.close();
+
+  if (tipe === 'LAPORAN_BARU' && AppState.session.role === 'SUPERVISOR') {
+    await openReviewModal(refId);
+  } else if (tipe === 'LAPORAN_SPV_APPROVED' && AppState.session.role === 'MANAJEMEN') {
+    await openApproveKTTModal(refId);
+  } else if (tipe === 'LAPORAN_DIKEMBALIKAN') {
+    navigateTo('laporan');
+  } else if (tipe === 'LAPORAN_FINAL') {
+    navigateTo('laporan');
+  }
+  pollNotifikasi();
+}
+
+// ============================================================
+// 5. DASHBOARD — FIX BUG #5: Grafik lebih menarik
+// ============================================================
+let chartInstances = {};
+let _dashCacheData = null;
+let _dashCacheTime = 0;
+
+async function refreshDashboard(force = false) {
+  const now = Date.now();
+  // Jika data baru diambil kurang dari 30 detik yang lalu dan bukan paksa refresh, render langsung tanpa loading
+  if (!force && _dashCacheData && (now - _dashCacheTime < 30000)) {
+    renderDashboardUI(_dashCacheData);
+    return;
+  }
+
+  try {
+    const data = await callServer('apiGetDashboardSummary', AppState.token);
+    if (data) {
+      _dashCacheData = data;
+      _dashCacheTime = Date.now();
+      renderDashboardUI(data);
+    }
+  } catch (e) {}
+}
+
+function renderDashboardUI(data) {
+  if (!data) return;
+  const role = AppState.session.role;
+
+  document.getElementById('kpi-value-1').textContent = data.totalHariIni;
+  document.getElementById('kpi-value-2').textContent = data.jumlahAnomaliAktif;
+  document.getElementById('kpi-card-2').classList.toggle('violation', data.jumlahAnomaliAktif > 0);
+  document.getElementById('kpi-value-4').textContent = data.complianceRate + '%';
+  document.getElementById('kpi-sub-4').innerHTML = `<b>${data.totalSampelBulanIni}</b> sampel diuji bulan ini`;
+
+  if (role === 'MANAJEMEN') {
+    const pendingCount = (data.pendingApprovalCount || 0) + (data.pendingLaporanKTT?.length || 0);
+    document.getElementById('kpi-value-3').textContent = pendingCount;
+    document.getElementById('kpi-sub-3').textContent = 'Menunggu tanda tangan Anda';
+  } else if (role === 'SUPERVISOR') {
+    document.getElementById('kpi-value-3').textContent = data.pendingLaporanSPV?.length || 0;
+    document.getElementById('kpi-sub-3').textContent = 'Laporan menunggu review';
+  } else {
+    document.getElementById('kpi-value-3').textContent = data.disposisiOpenCount;
+    document.getElementById('kpi-sub-3').textContent = 'Insiden belum tertutup';
+  }
+
+  const list = document.getElementById('anomaly-alert-list');
+  list.innerHTML = !data.anomaliAktif.length ? '<p class="text-muted">Tidak ada pelanggaran aktif.</p>' :
+    data.anomaliAktif.map(a => `
+      <div class="alert-card">
+        <div class="alert-title"><span>${a.Pond_ID} · ${a.Titik_Aliran}</span><span class="badge badge-violation">PELANGGARAN</span></div>
+        <div class="alert-meta">pH ${a.Nilai_pH} · TSS ${a.Nilai_TSS} · Fe ${a.Nilai_Fe} · Mn ${a.Nilai_Mn}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:.2rem;">${a.Tanggal_Sampling} ${a.Jam_Sampling}</div>
+      </div>`).join('');
+
+  renderTrendChart(data);
+  renderComplianceDonut(data);
+  renderPondBarChart(data);
+
+  if (role === 'OPERATOR') {
+    document.getElementById('operator-riwayat-body').innerHTML = (data.myTodayLogs || []).map(r => `
+      <tr><td class="mono">${r.Jam_Sampling}</td><td>${r.Pond_ID}</td><td>${r.Titik_Aliran}</td>
+      <td><span class="badge ${r.Status_Mutu === 'NORMAL' ? 'badge-compliant' : 'badge-violation'}">${r.Status_Mutu}</span></td></tr>`).join('')
+      || '<tr><td colspan="4" class="text-center text-muted">Belum ada input hari ini.</td></tr>';
+  }
+
+  if (role === 'MANAJEMEN') {
+    const pendingLaporan = data.pendingLaporanKTT || [];
+    const pendingLogs = data.pendingApprovalLogs || [];
+    document.getElementById('ktt-approval-body').innerHTML = [
+      ...pendingLaporan.map(r => `<tr><td class="mono">${r.Report_ID}</td><td>${r.Pond_ID}</td><td>-</td><td>-</td>
+        <td>${r.Reviewed_By_SPV || '-'}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="openApproveKTTModal('${r.Report_ID}')"><i class="fa-solid fa-file-signature me-1"></i>Setujui Laporan</button></td></tr>`),
+      ...pendingLogs.map(r => `<tr><td class="mono">${r.Log_ID}</td><td>${r.Pond_ID}</td>
+        <td class="numeric">${r.Nilai_pH}</td><td class="numeric">${r.Nilai_TSS}</td>
+        <td>${r.Verified_By || '-'}</td>
+        <td><button class="btn btn-sm btn-outline" onclick="verifyLog('${r.Log_ID}','APPROVED_KTT')">Setujui Log</button></td></tr>`)
+    ].join('') || '<tr><td colspan="6" class="text-center text-muted">Tidak ada item menunggu persetujuan.</td></tr>';
+  }
+}
+
+function renderTrendChart(data) {
+  destroyChart('trend');
+  const ctx = document.getElementById('chart-trend');
+  if (!ctx) return;
+  const labels = data.trend.map(t => t.date);
+  const phData = data.trend.map(t => t.ph);
+  const tssData = data.trend.map(t => t.tss);
+
+  const ctxObj = ctx.getContext('2d');
+  const gradPh = ctxObj.createLinearGradient(0, 0, 0, 300);
+  gradPh.addColorStop(0, 'rgba(15,81,50,0.3)');
+  gradPh.addColorStop(1, 'rgba(15,81,50,0)');
+  const gradTss = ctxObj.createLinearGradient(0, 0, 0, 300);
+  gradTss.addColorStop(0, 'rgba(2,132,199,0.3)');
+  gradTss.addColorStop(1, 'rgba(2,132,199,0)');
+
+  chartInstances['trend'] = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: labels,
+      labels,
       datasets: [
-        {
-          label: 'Limbah Masuk (Kg)',
-          data: dataMasuk,
-          borderColor: '#d4f933',
-          backgroundColor: 'rgba(212, 249, 51, 0.08)',
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: '#d4f933',
-          borderWidth: 2.5
-        },
-        {
-          label: 'Diserahkan ke Pihak Ketiga (Kg)',
-          data: dataKeluar,
-          borderColor: '#38bdf8',
-          backgroundColor: 'rgba(56, 189, 248, 0.04)',
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: '#38bdf8',
-          borderWidth: 2
-        }
+        { label: 'pH (rata-rata)', data: phData, borderColor: '#0F5132', backgroundColor: gradPh, tension: 0.4, fill: true, borderWidth: 2.5, pointBackgroundColor: '#0F5132', pointRadius: 4, pointHoverRadius: 6 },
+        { label: 'TSS mg/L', data: tssData, borderColor: '#0284C7', backgroundColor: gradTss, tension: 0.4, fill: true, borderWidth: 2.5, yAxisID: 'y1', pointBackgroundColor: '#0284C7', pointRadius: 4, pointHoverRadius: 6 }
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: false }
+        legend: { position: 'top', labels: { usePointStyle: true, pointStyle: 'circle', font: { family: 'Montserrat', size: 11 } } },
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.9)', padding: 12,
+          titleFont: { family: 'Montserrat', weight: '700' },
+          bodyFont: { family: 'JetBrains Mono', size: 12 },
+          callbacks: {
+            afterBody: (items) => {
+              const ph = items.find(i => i.dataset.label.includes('pH'));
+              if (ph) { const val = ph.parsed.y; return val < 6 || val > 9 ? '⚠️ Melebihi baku mutu!' : '✅ Dalam batas normal'; }
+              return '';
+            }
+          }
+        }
       },
       scales: {
-        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b' } },
-        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b' } }
+        x: { grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
+        y: { position: 'left', title: { display: true, text: 'pH', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        y1: { position: 'right', title: { display: true, text: 'TSS (mg/L)', font: { size: 11 } }, grid: { drawOnChartArea: false } }
       }
     }
   });
 }
 
-// --- 4.2 LIMBAH MASUK (DENGAN FILTER & REFRESH) ---
-function renderLimbahMasuk(filteredData = null) {
-  // Populate filter dropdown jenis limbah jika kosong
-  populateFilterMasukRintek();
-
-  const table = document.getElementById('tableLimbahMasukBody');
-  const rawData = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const data = filteredData || rawData;
-  table.innerHTML = '';
-
-  if (data.length === 0) {
-    table.innerHTML = `<tr><td colspan="11" class="text-center py-6 text-slate-500">Tidak ada data limbah masuk yang cocok dengan filter.</td></tr>`;
-    return;
-  }
-
-  const today = new Date();
-
-  data.slice().reverse().forEach(item => {
-    let sisaHari = '-';
-    let sisaBadge = 'badge-green';
-
-    if (item.tanggalJatuhTempo) {
-      const diff = Math.ceil((new Date(item.tanggalJatuhTempo) - today) / (1000 * 60 * 60 * 24));
-      sisaHari = `${diff} hari`;
-      if (diff <= 7 && diff >= 0) {
-        sisaBadge = 'badge-yellow animate-pulse';
-      } else if (diff < 0) {
-        sisaBadge = 'badge-red';
-        sisaHari = `Overdue (${Math.abs(diff)} h)`;
-      }
-    }
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="font-mono text-sky-400 font-medium">${item.id}</td>
-      <td class="text-xs text-slate-300">${item.tanggalMasuk}</td>
-      <td class="font-mono text-vault-lime font-bold">${item.kodeLimbah}</td>
-      <td class="font-semibold text-white">${item.namaLimbah}</td>
-      <td class="font-mono font-bold">${item.jumlah} ${item.satuan}</td>
-      <td>
-        <span class="badge-status ${item.statusRintek === 'Terdaftar' ? 'badge-green' : 'badge-yellow'}">
-          ${item.statusRintek}
-        </span>
-      </td>
-      <td class="font-mono text-xs text-slate-300">${item.tanggalJatuhTempo || '-'}</td>
-      <td><span class="badge-status ${sisaBadge}">${sisaHari}</span></td>
-      <td class="text-slate-400">${item.operator}</td>
-      <td>
-        <span class="badge-status ${item.statusStok === 'Tersedia' ? 'badge-lime' : 'badge-blue'}">
-          ${item.statusStok}
-        </span>
-      </td>
-      <td>
-        ${item.statusStok === 'Tersedia' ? `
-          <button onclick="quickKeluarLimbah('${item.id}')" class="btn-action-sm btn-edit">
-            Keluarkan
-          </button>
-        ` : `<span class="text-xs text-slate-500">-</span>`}
-      </td>
-    `;
-    table.appendChild(tr);
-  });
-}
-
-function populateFilterMasukRintek() {
-  const sel = document.getElementById('filterMasukRintek');
-  if (sel && sel.options.length <= 1) {
-    const rintek = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-    rintek.forEach(r => {
-      sel.innerHTML += `<option value="${r.kodeLimbah}">${r.namaLimbah} (${r.kodeLimbah})</option>`;
-    });
-  }
-}
-
-function applyFilterLimbahMasuk() {
-  const search = (document.getElementById('filterMasukSearch').value || '').toLowerCase();
-  const kode = document.getElementById('filterMasukRintek').value;
-  const stok = document.getElementById('filterMasukStok').value;
-  const tglDari = document.getElementById('filterMasukTglDari').value;
-  const tglSampai = document.getElementById('filterMasukTglSampai').value;
-
-  let list = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-
-  if (search) {
-    list = list.filter(m => m.namaLimbah.toLowerCase().includes(search) || m.id.toLowerCase().includes(search) || m.kodeLimbah.toLowerCase().includes(search));
-  }
-  if (kode) {
-    list = list.filter(m => m.kodeLimbah === kode);
-  }
-  if (stok) {
-    list = list.filter(m => m.statusStok === stok);
-  }
-  if (tglDari) {
-    list = list.filter(m => m.tanggalMasuk.slice(0, 10) >= tglDari);
-  }
-  if (tglSampai) {
-    list = list.filter(m => m.tanggalMasuk.slice(0, 10) <= tglSampai);
-  }
-
-  renderLimbahMasuk(list);
-}
-
-function resetFilterLimbahMasuk() {
-  document.getElementById('filterMasukSearch').value = '';
-  document.getElementById('filterMasukRintek').value = '';
-  document.getElementById('filterMasukStok').value = '';
-  document.getElementById('filterMasukTglDari').value = '';
-  document.getElementById('filterMasukTglSampai').value = '';
-  renderLimbahMasuk();
-}
-
-function refreshLimbahMasuk() {
-  resetFilterLimbahMasuk();
-  showToast('Data Limbah Masuk disegarkan.', 'info');
-}
-
-function openModalLimbahMasuk() {
-  populateRintekDropdown();
-  document.getElementById('masukTanggal').value = new Date().toISOString().slice(0, 16);
-  document.getElementById('formLimbahMasuk').reset();
-  document.getElementById('nonRintekWarnBox').classList.add('hidden');
-  openModal('modalLimbahMasuk');
-}
-
-function populateRintekDropdown() {
-  const select = document.getElementById('masukJenisSelect');
-  const rintek = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-  
-  select.innerHTML = '<option value="">-- Pilih Limbah Terdaftar di Rintek --</option>';
-  rintek.forEach(r => {
-    select.innerHTML += `<option value="${r.kodeLimbah}">${r.namaLimbah} (${r.kodeLimbah})</option>`;
-  });
-  select.innerHTML += '<option value="CUSTOM_NON_RINTEK">+ Lainnya (Di Luar Rintek - Penanganan Khusus)</option>';
-}
-
-function handleSelectLimbahRintek(kode) {
-  const rintekList = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-  const warnBox = document.getElementById('nonRintekWarnBox');
-
-  if (kode === 'CUSTOM_NON_RINTEK') {
-    warnBox.classList.remove('hidden');
-    document.getElementById('masukKode').value = 'NON-RINTEK';
-    document.getElementById('masukKarakteristik').value = 'Belum Terdaftar';
-    document.getElementById('masukBatasHari').value = '90 (Standar)';
-    return;
-  }
-
-  warnBox.classList.add('hidden');
-  const found = rintekList.find(r => r.kodeLimbah === kode);
-  if (found) {
-    document.getElementById('masukKode').value = found.kodeLimbah;
-    document.getElementById('masukKarakteristik').value = found.karakteristik;
-    document.getElementById('masukSatuan').value = found.satuan;
-    document.getElementById('masukBatasHari').value = `${found.batasSimpanHari} Hari`;
-  }
-}
-
-function handleFormLimbahMasuk(e) {
-  e.preventDefault();
-  const selectVal = document.getElementById('masukJenisSelect').value;
-  const kodeLimbah = document.getElementById('masukKode').value;
-  const jumlah = parseFloat(document.getElementById('masukJumlah').value);
-  const satuan = document.getElementById('masukSatuan').value;
-  const tglMasuk = document.getElementById('masukTanggal').value;
-  const batasHari = parseInt(document.getElementById('masukBatasHari').value) || 90;
-
-  let namaLimbah = '';
-  let statusRintek = 'Terdaftar';
-  let sumber = 'Operasional Tambang';
-
-  if (selectVal === 'CUSTOM_NON_RINTEK') {
-    statusRintek = 'Penanganan Khusus';
-    namaLimbah = prompt('Masukkan Nama Limbah Non-Rintek:', 'Residu Kimia Lab') || 'Limbah Khusus';
-  } else {
-    const rintekList = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-    const r = rintekList.find(item => item.kodeLimbah === kodeLimbah);
-    namaLimbah = r ? r.namaLimbah : 'Limbah B3';
-    sumber = r ? r.sumber : 'Operasional';
-  }
-
-  const tglMasukDate = new Date(tglMasuk);
-  const tglTempo = new Date(tglMasukDate.getTime() + (batasHari * 24 * 60 * 60 * 1000));
-  const tempoStr = tglTempo.toISOString().slice(0, 10);
-
-  const newId = 'IN-' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 13);
-  const operatorName = STATE.currentUser ? STATE.currentUser.nama : 'Operator Lapangan';
-
-  const newEntry = {
-    id: newId,
-    tanggalMasuk: tglMasuk.replace('T', ' '),
-    kodeLimbah: kodeLimbah,
-    namaLimbah: namaLimbah,
-    sumber: sumber,
-    jumlah: jumlah,
-    satuan: satuan,
-    fotoUrl: '',
-    statusRintek: statusRintek,
-    batasSimpanHari: batasHari,
-    tanggalJatuhTempo: tempoStr,
-    operator: operatorName,
-    statusStok: 'Tersedia'
-  };
-
-  const dbMasuk = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  dbMasuk.push(newEntry);
-  localStorage.setItem('db_limbah_masuk', JSON.stringify(dbMasuk));
-
-  if (statusRintek === 'Penanganan Khusus') {
-    const dbPK = JSON.parse(localStorage.getItem('db_penanganan_khusus') || '[]');
-    dbPK.push({
-      id: 'PK-' + newId,
-      refIdMasuk: newId,
-      kodeLimbah: kodeLimbah,
-      namaLimbah: namaLimbah,
-      alasan: document.getElementById('masukAlasanKhusus').value || 'Di luar rintek',
-      status: 'Pending',
-      approver: '-',
-      catatan: '-'
-    });
-    localStorage.setItem('db_penanganan_khusus', JSON.stringify(dbPK));
-    showToast('Peringatan: Masuk antrean Penanganan Khusus.', 'warning');
-  } else {
-    showToast('Limbah masuk berhasil dicatat.', 'success');
-  }
-
-  addAuditLog(operatorName, 'INPUT_LIMBAH_MASUK', `Mencatat limbah masuk: ${namaLimbah} (${jumlah} ${satuan})`);
-  closeModal('modalLimbahMasuk');
-  renderLimbahMasuk();
-  renderDashboard();
-}
-
-// --- 4.3 LIMBAH KELUAR (DENGAN FILTER & REFRESH) ---
-function renderLimbahKeluar(filteredData = null) {
-  populateFilterKeluarPK();
-
-  const table = document.getElementById('tableLimbahKeluarBody');
-  const rawData = JSON.parse(localStorage.getItem('db_limbah_keluar') || '[]');
-  const data = filteredData || rawData;
-  table.innerHTML = '';
-
-  if (data.length === 0) {
-    table.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-500">Tidak ada data limbah keluar yang cocok.</td></tr>`;
-    return;
-  }
-
-  data.slice().reverse().forEach(item => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="font-mono text-sky-400 font-medium">${item.id}</td>
-      <td class="font-mono text-xs text-slate-400">${item.refIdMasuk}</td>
-      <td class="text-xs text-slate-300">${item.tanggalKeluar}</td>
-      <td class="font-semibold text-white">
-        ${item.namaLimbah}
-        <span class="text-xs text-slate-400 font-mono block">${item.kodeLimbah}</span>
-      </td>
-      <td class="font-mono font-bold">${item.jumlah} ${item.satuan}</td>
-      <td class="text-slate-300">${item.tujuanPihakKetiga}</td>
-      <td class="text-xs font-mono">
-        <span class="text-sky-400 block">SJ: ${item.suratJalan}</span>
-        <span class="text-emerald-400 block">Manifes: ${item.manifes}</span>
-      </td>
-      <td class="text-slate-400">${item.operator}</td>
-      <td>
-        <span class="badge-status badge-lime">
-          <i data-lucide="check" class="w-3 h-3"></i> Terkonfirmasi
-        </span>
-      </td>
-    `;
-    table.appendChild(tr);
-  });
-}
-
-function populateFilterKeluarPK() {
-  const sel = document.getElementById('filterKeluarPK');
-  if (sel && sel.options.length <= 1) {
-    const pkList = JSON.parse(localStorage.getItem('db_pihak_ketiga') || '[]');
-    pkList.forEach(pk => {
-      sel.innerHTML += `<option value="${pk.namaPerusahaan}">${pk.namaPerusahaan}</option>`;
-    });
-  }
-}
-
-function applyFilterLimbahKeluar() {
-  const search = (document.getElementById('filterKeluarSearch').value || '').toLowerCase();
-  const pk = document.getElementById('filterKeluarPK').value;
-  const tglDari = document.getElementById('filterKeluarTglDari').value;
-  const tglSampai = document.getElementById('filterKeluarTglSampai').value;
-
-  let list = JSON.parse(localStorage.getItem('db_limbah_keluar') || '[]');
-
-  if (search) {
-    list = list.filter(k => (k.suratJalan && k.suratJalan.toLowerCase().includes(search)) || (k.manifes && k.manifes.toLowerCase().includes(search)) || k.namaLimbah.toLowerCase().includes(search));
-  }
-  if (pk) {
-    list = list.filter(k => k.tujuanPihakKetiga === pk);
-  }
-  if (tglDari) {
-    list = list.filter(k => k.tanggalKeluar.slice(0, 10) >= tglDari);
-  }
-  if (tglSampai) {
-    list = list.filter(k => k.tanggalKeluar.slice(0, 10) <= tglSampai);
-  }
-
-  renderLimbahKeluar(list);
-}
-
-function resetFilterLimbahKeluar() {
-  document.getElementById('filterKeluarSearch').value = '';
-  document.getElementById('filterKeluarPK').value = '';
-  document.getElementById('filterKeluarTglDari').value = '';
-  document.getElementById('filterKeluarTglSampai').value = '';
-  renderLimbahKeluar();
-}
-
-function refreshLimbahKeluar() {
-  resetFilterLimbahKeluar();
-  showToast('Data Limbah Keluar disegarkan.', 'info');
-}
-
-function openModalLimbahKeluar() {
-  const select = document.getElementById('keluarRefMasukSelect');
-  const masuk = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const tersedia = masuk.filter(m => m.statusStok === 'Tersedia');
-
-  select.innerHTML = '<option value="">-- Pilih dari Stok Masuk yang Tersedia --</option>';
-  tersedia.forEach(t => {
-    select.innerHTML += `<option value="${t.id}">${t.id} - ${t.namaLimbah} (Sisa: ${t.jumlah} ${t.satuan})</option>`;
-  });
-
-  const pkSelect = document.getElementById('keluarPihakKetigaSelect');
-  const pihakKetiga = JSON.parse(localStorage.getItem('db_pihak_ketiga') || '[]');
-  pkSelect.innerHTML = '';
-  pihakKetiga.forEach(pk => {
-    pkSelect.innerHTML += `<option value="${pk.namaPerusahaan}">${pk.namaPerusahaan} (${pk.noIzin})</option>`;
-  });
-
-  document.getElementById('keluarTanggal').value = new Date().toISOString().slice(0, 16);
-  openModal('modalLimbahKeluar');
-}
-
-function quickKeluarLimbah(idMasuk) {
-  openModalLimbahKeluar();
-  document.getElementById('keluarRefMasukSelect').value = idMasuk;
-  handleSelectStokKeluar(idMasuk);
-}
-
-function handleSelectStokKeluar(idMasuk) {
-  const masuk = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const item = masuk.find(m => m.id === idMasuk);
-  if (item) {
-    document.getElementById('keluarJumlah').value = item.jumlah;
-  }
-}
-
-function handleFormLimbahKeluar(e) {
-  e.preventDefault();
-  const refId = document.getElementById('keluarRefMasukSelect').value;
-  const jumlah = parseFloat(document.getElementById('keluarJumlah').value);
-  const tanggal = document.getElementById('keluarTanggal').value;
-  const tujuan = document.getElementById('keluarPihakKetigaSelect').value;
-  const noSJ = document.getElementById('keluarNoSJ').value.trim();
-  const noManifes = document.getElementById('keluarNoManifes').value.trim();
-
-  const masukList = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const itemIdx = masukList.findIndex(m => m.id === refId);
-
-  if (itemIdx === -1) {
-    showToast('Referensi limbah tidak valid.', 'error');
-    return;
-  }
-
-  const itemMasuk = masukList[itemIdx];
-  itemMasuk.statusStok = 'Keluar';
-  localStorage.setItem('db_limbah_masuk', JSON.stringify(masukList));
-
-  const newOutId = 'OUT-' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 13);
-  const operatorName = STATE.currentUser ? STATE.currentUser.nama : 'Operator Lapangan';
-
-  const newOutEntry = {
-    id: newOutId,
-    refIdMasuk: refId,
-    tanggalKeluar: tanggal.replace('T', ' '),
-    kodeLimbah: itemMasuk.kodeLimbah,
-    namaLimbah: itemMasuk.namaLimbah,
-    jumlah: jumlah,
-    satuan: itemMasuk.satuan,
-    tujuanPihakKetiga: tujuan,
-    suratJalan: noSJ,
-    manifes: noManifes,
-    operator: operatorName,
-    status: 'Keluar Terkonfirmasi'
-  };
-
-  const keluarList = JSON.parse(localStorage.getItem('db_limbah_keluar') || '[]');
-  keluarList.push(newOutEntry);
-  localStorage.setItem('db_limbah_keluar', JSON.stringify(keluarList));
-
-  addAuditLog(operatorName, 'INPUT_LIMBAH_KELUAR', `Menyerahkan limbah ${itemMasuk.namaLimbah} (${jumlah} ${itemMasuk.satuan}) ke ${tujuan}`);
-  showToast('Pengeluaran limbah berhasil dicatat.', 'success');
-
-  closeModal('modalLimbahKeluar');
-  renderLimbahKeluar();
-  renderDashboard();
-}
-
-// --- 4.4 PENANGANAN KHUSUS ---
-function renderPenangananKhusus() {
-  const table = document.getElementById('tablePenangananKhususBody');
-  const data = JSON.parse(localStorage.getItem('db_penanganan_khusus') || '[]');
-  table.innerHTML = '';
-
-  if (data.length === 0) {
-    table.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-500">Tidak ada antrean limbah penanganan khusus. Seluruh limbah sesuai dengan Rintek TPS 01.</td></tr>`;
-    return;
-  }
-
-  data.forEach(item => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="font-mono text-amber-400 font-medium">${item.id}</td>
-      <td class="font-mono text-xs text-slate-400">${item.refIdMasuk}</td>
-      <td class="font-semibold text-white">${item.namaLimbah}</td>
-      <td class="text-xs text-slate-300">${item.alasan}</td>
-      <td>
-        <span class="badge-status ${item.status === 'Approved' ? 'badge-green' : item.status === 'Rejected' ? 'badge-red' : 'badge-yellow'}">
-          ${item.status}
-        </span>
-      </td>
-      <td class="text-slate-400">${item.approver}</td>
-      <td class="text-xs text-slate-300">${item.catatan}</td>
-      <td>
-        ${item.status === 'Pending' ? `
-          <div class="flex items-center gap-1.5">
-            <button onclick="approvePK('${item.id}', true)" class="btn-action-sm btn-edit">Approve</button>
-            <button onclick="approvePK('${item.id}', false)" class="btn-action-sm btn-delete">Tolak</button>
-          </div>
-        ` : `<span class="text-xs text-slate-500">Selesai</span>`}
-      </td>
-    `;
-    table.appendChild(tr);
-  });
-}
-
-function approvePK(id, isApproved) {
-  if (STATE.currentUser && STATE.currentUser.role !== 'Penanggung Jawab' && STATE.currentUser.role !== 'Manajemen / KTT') {
-    showToast('Akses ditolak: Hanya Penanggung Jawab TPS yang berwenang.', 'error');
-    return;
-  }
-
-  const catatan = prompt(`Catatan telaah (${isApproved ? 'Persetujuan' : 'Penolakan'}):`, 'Disetujui untuk penyimpanan sementara.') || '-';
-  const list = JSON.parse(localStorage.getItem('db_penanganan_khusus') || '[]');
-  const item = list.find(p => p.id === id);
-
-  if (item) {
-    item.status = isApproved ? 'Approved' : 'Rejected';
-    item.approver = STATE.currentUser ? STATE.currentUser.nama : 'Hermanto (PJ TPS)';
-    item.catatan = catatan;
-    localStorage.setItem('db_penanganan_khusus', JSON.stringify(list));
-
-    addAuditLog(item.approver, 'APPROVAL_PENANGANAN_KHUSUS', `${item.status} untuk ${id}`);
-    showToast(`Status penanganan khusus diperbarui: ${item.status}`, 'info');
-    renderPenangananKhusus();
-    renderDashboard();
-  }
-}
-
-// --- 4.5 INSPEKSI TPS K3L (DENGAN FILTER, REFRESH, EDIT, HAPUS - Revisi #1 & #4) ---
-function renderInspeksi(filteredData = null) {
-  const table = document.getElementById('tableInspeksiBody');
-  const rawData = JSON.parse(localStorage.getItem('db_inspeksi') || '[]');
-  const data = filteredData || rawData;
-  table.innerHTML = '';
-
-  if (data.length === 0) {
-    table.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500">Belum ada riwayat inspeksi yang cocok.</td></tr>`;
-    return;
-  }
-
-  data.slice().reverse().forEach(item => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="font-mono text-sky-400 font-medium">${item.id}</td>
-      <td class="text-xs text-slate-300">${item.tanggal}</td>
-      <td class="font-semibold text-white">${item.itemChecklist}</td>
-      <td>
-        <span class="badge-status ${item.kondisi === 'Baik' ? 'badge-green' : 'badge-red'}">
-          ${item.kondisi}
-        </span>
-      </td>
-      <td class="text-xs text-slate-300">${item.catatan || '-'}</td>
-      <td class="text-slate-400">${item.operator}</td>
-      <td>
-        <div class="flex items-center gap-1.5">
-          <button onclick="openModalEditInspeksi('${item.id}')" class="btn-action-sm btn-edit" title="Edit Catatan"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i></button>
-          <button onclick="deleteInspeksi('${item.id}')" class="btn-action-sm btn-delete" title="Hapus"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-        </div>
-      </td>
-    `;
-    table.appendChild(tr);
-  });
-}
-
-function applyFilterInspeksi() {
-  const kondisi = document.getElementById('filterInspeksiKondisi').value;
-  const tgl = document.getElementById('filterInspeksiTgl').value;
-  let list = JSON.parse(localStorage.getItem('db_inspeksi') || '[]');
-
-  if (kondisi) list = list.filter(i => i.kondisi === kondisi);
-  if (tgl) list = list.filter(i => i.tanggal.slice(0, 10) === tgl);
-
-  renderInspeksi(list);
-}
-
-function resetFilterInspeksi() {
-  document.getElementById('filterInspeksiKondisi').value = '';
-  document.getElementById('filterInspeksiTgl').value = '';
-  renderInspeksi();
-}
-
-function refreshInspeksi() {
-  resetFilterInspeksi();
-  showToast('Data Inspeksi TPS disegarkan.', 'info');
-}
-
-function openModalInspeksi() {
-  const container = document.getElementById('inspeksiItemsContainer');
-  container.innerHTML = '';
-
-  INSPEKSI_ITEMS_DEFAULT.forEach((item, idx) => {
-    const div = document.createElement('div');
-    div.className = 'p-3 rounded-2xl bg-slate-800/80 border border-slate-700/80 space-y-2';
-    div.innerHTML = `
-      <div class="flex items-center justify-between">
-        <label class="text-xs font-bold text-white">${idx + 1}. ${item}</label>
-        <div class="flex items-center gap-2">
-          <label class="flex items-center gap-1 text-xs text-emerald-400 cursor-pointer">
-            <input type="radio" name="kondisi_${idx}" value="Baik" checked class="text-emerald-500"> Baik
-          </label>
-          <label class="flex items-center gap-1 text-xs text-rose-400 cursor-pointer">
-            <input type="radio" name="kondisi_${idx}" value="Rusak" class="text-rose-500"> Rusak / Perbaikan
-          </label>
-        </div>
-      </div>
-      <input type="text" id="catatan_${idx}" placeholder="Catatan kondisi fisik / temuan..." class="auth-input !py-1.5 text-xs">
-    `;
-    container.appendChild(div);
-  });
-
-  openModal('modalInspeksi');
-}
-
-function handleFormInspeksi(e) {
-  e.preventDefault();
-  const operatorName = STATE.currentUser ? STATE.currentUser.nama : 'Operator Lapangan';
-  const batchId = 'INSP-' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
-  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
-
-  const currentInspeksi = JSON.parse(localStorage.getItem('db_inspeksi') || '[]');
-  let foundRusak = false;
-
-  INSPEKSI_ITEMS_DEFAULT.forEach((item, idx) => {
-    const radios = document.getElementsByName(`kondisi_${idx}`);
-    let selectedKondisi = 'Baik';
-    for (let r of radios) {
-      if (r.checked) selectedKondisi = r.value;
-    }
-
-    if (selectedKondisi === 'Rusak') foundRusak = true;
-    const catatan = document.getElementById(`catatan_${idx}`).value;
-
-    currentInspeksi.push({
-      id: `${batchId}-${idx + 1}`,
-      tanggal: now,
-      itemChecklist: item,
-      kondisi: selectedKondisi,
-      catatan: catatan,
-      operator: operatorName
-    });
-  });
-
-  localStorage.setItem('db_inspeksi', JSON.stringify(currentInspeksi));
-  addAuditLog(operatorName, 'INSPEKSI_TPS', `Melakukan checklist inspeksi K3L (${batchId})`);
-
-  if (foundRusak) {
-    showToast('PERINGATAN K3L: Ditemukan sarana RUSAK. Notifikasi otomatis ke PJ TPS!', 'error');
-  } else {
-    showToast('Checklist inspeksi disimpan. Kondisi sarana BAIK.', 'success');
-  }
-
-  closeModal('modalInspeksi');
-  renderInspeksi();
-}
-
-function openModalEditInspeksi(id) {
-  const list = JSON.parse(localStorage.getItem('db_inspeksi') || '[]');
-  const item = list.find(i => i.id === id);
-  if (!item) return;
-
-  document.getElementById('editInspeksiId').value = item.id;
-  document.getElementById('editInspeksiItem').value = item.itemChecklist;
-  document.getElementById('editInspeksiKondisi').value = item.kondisi;
-  document.getElementById('editInspeksiCatatan').value = item.catatan || '';
-
-  openModal('modalEditInspeksi');
-}
-
-function handleSaveEditInspeksi(e) {
-  e.preventDefault();
-  const id = document.getElementById('editInspeksiId').value;
-  const kondisi = document.getElementById('editInspeksiKondisi').value;
-  const catatan = document.getElementById('editInspeksiCatatan').value;
-
-  const list = JSON.parse(localStorage.getItem('db_inspeksi') || '[]');
-  const item = list.find(i => i.id === id);
-  if (item) {
-    item.kondisi = kondisi;
-    item.catatan = catatan;
-    localStorage.setItem('db_inspeksi', JSON.stringify(list));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Operator', 'EDIT_INSPEKSI', `Mengubah inspeksi ${id}`);
-    showToast('Catatan inspeksi berhasil diperbarui.', 'success');
-    closeModal('modalEditInspeksi');
-    renderInspeksi();
-  }
-}
-
-function deleteInspeksi(id) {
-  if (confirm(`Apakah Anda yakin ingin menghapus data inspeksi ${id}?`)) {
-    let list = JSON.parse(localStorage.getItem('db_inspeksi') || '[]');
-    list = list.filter(i => i.id !== id);
-    localStorage.setItem('db_inspeksi', JSON.stringify(list));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Operator', 'DELETE_INSPEKSI', `Menghapus data inspeksi ${id}`);
-    showToast('Data inspeksi berhasil dihapus.', 'info');
-    renderInspeksi();
-  }
-}
-
-// --- 4.6 LOGBOOK PERMEN LHK (DENGAN FILTER, REFRESH & CETAK LANDSCAPE LAMPIRAN 1 - Revisi #2 & #4) ---
-function renderLogbook(filteredData = null) {
-  populateFilterLogbookKode();
-
-  const table = document.getElementById('tableLogbookBody');
-  const masuk = filteredData || JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const keluar = JSON.parse(localStorage.getItem('db_limbah_keluar') || '[]');
-
-  table.innerHTML = '';
-
-  if (masuk.length === 0) {
-    table.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-slate-500">Belum ada data logbook.</td></tr>`;
-    return;
-  }
-
-  const mapKeluar = {};
-  keluar.forEach(k => { mapKeluar[k.refIdMasuk] = k; });
-
-  masuk.forEach((m, idx) => {
-    const k = mapKeluar[m.id];
-    const jmlMasuk = parseFloat(m.jumlah) || 0;
-    const jmlKeluar = k ? (parseFloat(k.jumlah) || 0) : 0;
-    const sisa = Math.max(0, jmlMasuk - jmlKeluar);
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="text-center font-mono">${idx + 1}</td>
-      <td class="text-xs font-mono">${m.tanggalMasuk}</td>
-      <td class="font-mono text-vault-lime font-bold">${m.kodeLimbah}</td>
-      <td class="font-medium">${m.namaLimbah}</td>
-      <td class="font-mono font-bold">${jmlMasuk} ${m.satuan}</td>
-      <td class="text-xs font-mono">${k ? k.tanggalKeluar : '-'}</td>
-      <td class="text-xs">${k ? k.tujuanPihakKetiga : '-'}</td>
-      <td class="font-mono">${k ? `${jmlKeluar} ${m.satuan}` : '-'}</td>
-      <td class="font-mono font-bold text-sky-400">${sisa} ${m.satuan}</td>
-      <td class="text-xs text-slate-400">${m.operator}</td>
-    `;
-    table.appendChild(tr);
-  });
-}
-
-function populateFilterLogbookKode() {
-  const sel = document.getElementById('filterLogbookKode');
-  if (sel && sel.options.length <= 1) {
-    const rintek = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-    rintek.forEach(r => {
-      sel.innerHTML += `<option value="${r.kodeLimbah}">${r.namaLimbah} (${r.kodeLimbah})</option>`;
-    });
-  }
-}
-
-function applyFilterLogbook() {
-  const kode = document.getElementById('filterLogbookKode').value;
-  const tglDari = document.getElementById('filterLogbookTglDari').value;
-  const tglSampai = document.getElementById('filterLogbookTglSampai').value;
-
-  let list = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-
-  if (kode) list = list.filter(m => m.kodeLimbah === kode);
-  if (tglDari) list = list.filter(m => m.tanggalMasuk.slice(0, 10) >= tglDari);
-  if (tglSampai) list = list.filter(m => m.tanggalMasuk.slice(0, 10) <= tglSampai);
-
-  renderLogbook(list);
-}
-
-function resetFilterLogbook() {
-  document.getElementById('filterLogbookKode').value = '';
-  document.getElementById('filterLogbookTglDari').value = '';
-  document.getElementById('filterLogbookTglSampai').value = '';
-  renderLogbook();
-}
-
-function refreshLogbook() {
-  resetFilterLogbook();
-  showToast('Logbook Permen LHK disegarkan.', 'info');
-}
-
-// --- CETAK LOGBOOK LANDSCAPE PERSIS LAMPIRAN 1 (Revisi #2) ---
-function printOfficialLogbookLandscape() {
-  const cfg = JSON.parse(localStorage.getItem('db_settings') || '{}');
-  const masuk = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const keluar = JSON.parse(localStorage.getItem('db_limbah_keluar') || '[]');
-
-  // Update KOP
-  document.getElementById('kopLogbookNamaPerusahaan').textContent = (cfg.namaPerusahaan || 'PT. ETAM MANUNGGAL JAYA').toUpperCase();
-  document.getElementById('kopLogbookAlamat').textContent = cfg.alamatKantor || 'Jalan S. Parman No. 6, Kota Samarinda, Kalimantan Timur';
-  document.getElementById('kopLogbookKontak').textContent = `Telp: ${cfg.telpPerusahaan || '-'} • Email: ${cfg.emailPerusahaan || '-'}`;
-  if (cfg.logoBase64) {
-    document.getElementById('kopLogbookLogo').src = cfg.logoBase64;
-    document.getElementById('kopLogbookLogo').style.display = 'block';
-  } else {
-    document.getElementById('kopLogbookLogo').style.display = 'none';
-  }
-
-  // Format Tanggal Indonesia: dd MMMM yyyy
-  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-  const now = new Date();
-  const tglFormatted = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-  document.getElementById('printLogbookTanggal').textContent = tglFormatted;
-  document.getElementById('printLogbookLokasi').textContent = 'Batuah';
-
-  // Paraf Petugas / Operator Saja (Sesuai Revisi #2)
-  const opName = STATE.currentUser ? STATE.currentUser.nama : 'Operator Lapangan';
-  document.getElementById('printLogbookOperatorName').textContent = opName;
-
-  // Render Tabel 11 Kolom Sesuai Lampiran 1
-  const mapKeluar = {};
-  keluar.forEach(k => { mapKeluar[k.refIdMasuk] = k; });
-
-  const tbody = document.getElementById('printLogbookTableBody');
-  tbody.innerHTML = '';
-
-  masuk.forEach((m, idx) => {
-    const k = mapKeluar[m.id];
-    const jmlMasuk = parseFloat(m.jumlah) || 0;
-    const jmlKeluar = k ? (parseFloat(k.jumlah) || 0) : 0;
-    const sisa = Math.max(0, jmlMasuk - jmlKeluar);
-
-    // Format tanggal dd/MM/yyyy
-    const tglMasukFormatted = formatDateSlashes(m.tanggalMasuk);
-    const tglTempoFormatted = formatDateSlashes(m.tanggalJatuhTempo);
-    const tglKeluarFormatted = k ? formatDateSlashes(k.tanggalKeluar) : '-';
-    const buktiDok = k ? `${k.suratJalan || ''} / ${k.manifes || ''}` : '-';
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="text-align: center;">${idx + 1}</td>
-      <td><strong>${m.namaLimbah}</strong><br><span style="font-size: 7.5pt; color: #555;">Kode: ${m.kodeLimbah}</span></td>
-      <td style="text-align: center;">${tglMasukFormatted}</td>
-      <td>${m.sumber || 'Workshop Tambang'}</td>
-      <td style="text-align: right; font-weight: bold;">${jmlMasuk.toLocaleString('id-ID')} ${m.satuan}</td>
-      <td style="text-align: center;">${tglTempoFormatted}</td>
-      <td style="text-align: center;">${tglKeluarFormatted}</td>
-      <td style="text-align: right;">${k ? `${jmlKeluar.toLocaleString('id-ID')} ${m.satuan}` : '-'}</td>
-      <td>${k ? k.tujuanPihakKetiga : '-'}</td>
-      <td style="font-size: 7.5pt;">${buktiDok}</td>
-      <td style="text-align: right; font-weight: bold;">${sisa.toLocaleString('id-ID')} ${m.satuan}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  // Trigger Print Landscape
-  document.body.className = 'print-landscape';
-  const printEl = document.getElementById('printLogbookLandscapeContainer');
-  printEl.classList.add('active-print');
-
-  setTimeout(() => {
-    window.print();
-    printEl.classList.remove('active-print');
-    document.body.className = '';
-  }, 200);
-}
-
-function formatDateSlashes(dateStr) {
-  if (!dateStr || dateStr === '-') return '-';
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const day = ('0' + d.getDate()).slice(-2);
-    const m = ('0' + (d.getMonth() + 1)).slice(-2);
-    const y = d.getFullYear();
-    return `${day}/${m}/${y}`;
-  } catch(e) {
-    return dateStr;
-  }
-}
-
-function exportLogbookCSV() {
-  const masuk = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const keluar = JSON.parse(localStorage.getItem('db_limbah_keluar') || '[]');
-  const mapKeluar = {};
-  keluar.forEach(k => { mapKeluar[k.refIdMasuk] = k; });
-
-  let csvContent = '\uFEFF';
-  csvContent += 'No,Jenis Limbah B3 Masuk,Tanggal Masuk,Sumber Limbah B3,Jumlah Masuk,Satuan,Maksimal Penyimpanan s/d,Tanggal Keluar,Jumlah Keluar,Tujuan Penyerahan,Bukti Nomor Dokumen,Sisa Limbah di TPS,Paraf Petugas\n';
-
-  masuk.forEach((m, idx) => {
-    const k = mapKeluar[m.id];
-    const jmlMasuk = parseFloat(m.jumlah) || 0;
-    const jmlKeluar = k ? (parseFloat(k.jumlah) || 0) : 0;
-    const sisa = Math.max(0, jmlMasuk - jmlKeluar);
-    const buktiDok = k ? `${k.suratJalan} / ${k.manifes}` : '-';
-
-    csvContent += `"${idx + 1}","${m.namaLimbah} (${m.kodeLimbah})","${m.tanggalMasuk}","${m.sumber || 'Workshop'}","${jmlMasuk}","${m.satuan}","${m.tanggalJatuhTempo || '-'}","${k ? k.tanggalKeluar : '-'}","${jmlKeluar}","${k ? k.tujuanPihakKetiga : '-'}","${buktiDok}","${sisa}","${m.operator}"\n`;
-  });
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `Logbook_Lampiran1_PermenLHK_PT_EMJ_${new Date().toISOString().slice(0, 10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  showToast('File CSV Logbook berhasil diunduh.', 'success');
-}
-
-// --- 4.7 NERACA LIMBAH B3 & CETAK PORTRAIT LAMPIRAN 2 (Revisi #3 & #4) ---
-function renderNeraca(filteredData = null) {
-  const container = document.getElementById('neracaListContainer');
-  const rawList = JSON.parse(localStorage.getItem('db_neraca') || '[]');
-  const neracaList = filteredData || rawList;
-  container.innerHTML = '';
-
-  if (neracaList.length === 0) {
-    container.innerHTML = `
-      <div class="data-card text-center py-12 text-slate-400">
-        <i data-lucide="scale" class="w-12 h-12 mx-auto text-slate-600 mb-3"></i>
-        <p class="font-bold text-white">Tidak Ada Neraca yang Cocok dengan Filter</p>
-      </div>
-    `;
-    return;
-  }
-
-  neracaList.forEach(n => {
-    const card = document.createElement('div');
-    card.className = 'data-card space-y-6';
-    card.innerHTML = `
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-vault-border gap-2">
-        <div>
-          <span class="text-[10px] font-mono font-bold text-vault-lime uppercase tracking-widest">NERACA LIMBAH B3 RESMI (LAMPIRAN IX)</span>
-          <h3 class="text-lg font-bold text-white">${n.periode}</h3>
-          <p class="text-xs text-slate-400">PT. Etam Manunggal Jaya &bull; Dokumen ID: <span class="font-mono text-sky-400">${n.id}</span></p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="badge-status ${n.status === 'Final' ? 'badge-green' : 'badge-yellow'} font-bold">
-            ${n.status}
-          </span>
-          <button onclick="printOfficialNeracaPortrait('${n.id}')" class="btn-primary-pill !w-auto !py-1.5 !px-3 text-xs bg-slate-800">
-            <i data-lucide="printer" class="w-3.5 h-3.5"></i> Cetak Neraca (Portrait)
-          </button>
-        </div>
-      </div>
-
-      <!-- Preview Ringkas Screen -->
-      <div class="overflow-x-auto rounded-xl border border-vault-border">
-        <table class="custom-table text-xs">
-          <thead>
-            <tr class="bg-slate-800">
-              <th>Komponen</th>
-              <th>Uraian</th>
-              <th class="text-right">Jumlah (Ton)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="font-bold text-vault-lime font-mono">A. TOTAL DIHASILKAN</td>
-              <td>Akumulasi limbah B3 masuk ke TPS 01</td>
-              <td class="font-mono font-bold text-right text-white">${n.dataA} Ton</td>
-            </tr>
-            <tr>
-              <td class="font-bold text-sky-400 font-mono">B. PERLAKUAN</td>
-              <td>Diserahkan (${n.dataB.diserahkanPihakKetiga} Ton) & Disimpan (${n.dataB.disimpan} Ton)</td>
-              <td class="font-mono font-bold text-right text-white">${(parseFloat(n.dataB.diserahkanPihakKetiga) + parseFloat(n.dataB.disimpan)).toFixed(3)} Ton</td>
-            </tr>
-            <tr class="bg-slate-900 font-bold">
-              <td colspan="2" class="text-white">KINERJA PENGELOLAAN: [ (A - (C+D)) / A ] &times; 100%</td>
-              <td class="text-right text-vault-lime font-mono text-sm">${n.kinerja}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 3-Tier E-Signature Workflow Box -->
-      <div>
-        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-          Verifikasi & Pengesahan Digital Berjenjang (3 Tingkat)
-        </h4>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <!-- Tier 1: Operator -->
-          <div class="p-4 rounded-2xl bg-slate-900/80 border ${n.ttdOperator ? 'border-emerald-500/40' : 'border-slate-800'} text-center space-y-2">
-            <span class="text-[10px] uppercase font-bold text-slate-400">1. Disusun Oleh</span>
-            <p class="text-xs font-bold text-white">Operator TPS LB3</p>
-            <div class="h-20 flex items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/60 p-1">
-              ${n.ttdOperator ? `<img src="${n.ttdOperator}" class="max-h-16 mx-auto">` : `<span class="text-[11px] text-slate-600 italic">Belum diparaf</span>`}
-            </div>
-            ${!n.ttdOperator ? `
-              <button onclick="openSignatureModal('${n.id}', 'Operator')" class="btn-primary-pill !w-full !py-1.5 text-xs">
-                Paraf Operator
-              </button>
-            ` : `<span class="text-[11px] text-emerald-400 font-mono font-bold flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Terverifikasi</span>`}
-          </div>
-
-          <!-- Tier 2: Penanggung Jawab -->
-          <div class="p-4 rounded-2xl bg-slate-900/80 border ${n.ttdPJ ? 'border-emerald-500/40' : 'border-slate-800'} text-center space-y-2">
-            <span class="text-[10px] uppercase font-bold text-slate-400">2. Diperiksa Oleh</span>
-            <p class="text-xs font-bold text-white">Penanggung Jawab TPS</p>
-            <div class="h-20 flex items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/60 p-1">
-              ${n.ttdPJ ? `<img src="${n.ttdPJ}" class="max-h-16 mx-auto">` : `<span class="text-[11px] text-slate-600 italic">Menunggu Operator</span>`}
-            </div>
-            ${!n.ttdPJ && n.ttdOperator ? `
-              <button onclick="openSignatureModal('${n.id}', 'Penanggung Jawab')" class="btn-lime-pill !w-full !py-1.5 text-xs justify-center">
-                Tanda Tangan PJ
-              </button>
-            ` : n.ttdPJ ? `<span class="text-[11px] text-emerald-400 font-mono font-bold flex items-center justify-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Disetujui PJ</span>` : `<span class="text-[11px] text-slate-500">Antrean Level 2</span>`}
-          </div>
-
-          <!-- Tier 3: KTT -->
-          <div class="p-4 rounded-2xl bg-slate-900/80 border ${n.ttdKTT ? 'border-emerald-500/40' : 'border-slate-800'} text-center space-y-2">
-            <span class="text-[10px] uppercase font-bold text-slate-400">3. Disahkan Oleh</span>
-            <p class="text-xs font-bold text-white">Kepala Teknik Tambang (KTT)</p>
-            <div class="h-20 flex items-center justify-center border border-dashed border-slate-800 rounded-xl bg-slate-950/60 p-1">
-              ${n.ttdKTT ? `<img src="${n.ttdKTT}" class="max-h-16 mx-auto">` : `<span class="text-[11px] text-slate-600 italic">Menunggu PJ</span>`}
-            </div>
-            ${!n.ttdKTT && n.ttdPJ ? `
-              <button onclick="openSignatureModal('${n.id}', 'Manajemen / KTT')" class="btn-primary-pill !w-full !py-1.5 text-xs bg-purple-600 hover:bg-purple-500">
-                Sahkan (KTT)
-              </button>
-            ` : n.ttdKTT ? `<span class="text-[11px] text-purple-400 font-mono font-bold flex items-center justify-center gap-1"><i data-lucide="award" class="w-3.5 h-3.5"></i> Disahkan KTT (Final)</span>` : `<span class="text-[11px] text-slate-500">Antrean Level 3</span>`}
-          </div>
-        </div>
-      </div>
-    `;
-    container.appendChild(card);
-  });
-}
-
-function applyFilterNeraca() {
-  const status = document.getElementById('filterNeracaStatus').value;
-  let list = JSON.parse(localStorage.getItem('db_neraca') || '[]');
-  if (status) {
-    list = list.filter(n => n.status.includes(status));
-  }
-  renderNeraca(list);
-}
-
-function resetFilterNeraca() {
-  document.getElementById('filterNeracaStatus').value = '';
-  renderNeraca();
-}
-
-function refreshNeraca() {
-  resetFilterNeraca();
-  showToast('Neraca Limbah disegarkan.', 'info');
-}
-
-// --- CETAK NERACA PORTRAIT PERSIS LAMPIRAN 2 (Revisi #3) ---
-function printOfficialNeracaPortrait(neracaId) {
-  const cfg = JSON.parse(localStorage.getItem('db_settings') || '{}');
-  const neracaList = JSON.parse(localStorage.getItem('db_neraca') || '[]');
-  const n = neracaList.find(item => item.id === neracaId) || neracaList[0];
-  if (!n) return;
-
-  const masuk = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-
-  // Update KOP
-  document.getElementById('kopNeracaNamaPerusahaan').textContent = (cfg.namaPerusahaan || 'PT. ETAM MANUNGGAL JAYA').toUpperCase();
-  document.getElementById('kopNeracaAlamat').textContent = cfg.alamatKantor || 'Jalan S. Parman No. 6, Kota Samarinda, Kalimantan Timur';
-  document.getElementById('kopNeracaKontak').textContent = `Telp: ${cfg.telpPerusahaan || '-'} • Email: ${cfg.emailPerusahaan || '-'}`;
-  if (cfg.logoBase64) {
-    document.getElementById('kopNeracaLogo').src = cfg.logoBase64;
-    document.getElementById('kopNeracaLogo').style.display = 'block';
-  } else {
-    document.getElementById('kopNeracaLogo').style.display = 'none';
-  }
-
-  // Metadata
-  document.getElementById('printNeracaPerusahaan').textContent = cfg.namaPerusahaan || 'PT. Etam Manunggal Jaya';
-  document.getElementById('printNeracaBidangUsaha').textContent = cfg.bidangUsaha || 'Pertambangan Batubara';
-  document.getElementById('printNeracaPeriode').textContent = n.periode;
-
-  // Bagian I: Jenis Awal Limbah Table
-  const tbodyA = document.getElementById('printNeracaTableA');
-  tbodyA.innerHTML = '';
-
-  const rintekMap = {};
-  masuk.forEach(m => {
-    rintekMap[m.namaLimbah] = (rintekMap[m.namaLimbah] || 0) + (parseFloat(m.jumlah) || 0);
-  });
-
-  let counter = 1;
-  for (let [nama, kg] of Object.entries(rintekMap)) {
-    const ton = (kg / 1000).toFixed(3);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="text-align: center;">${counter++}</td>
-      <td>${nama}</td>
-      <td style="text-align: right; font-weight: bold;">${ton}</td>
-      <td colspan="3">Penyimpanan di TPS LB3 01</td>
-    `;
-    tbodyA.appendChild(tr);
-  }
-  document.getElementById('printNeracaTotalA').textContent = `A (+) ${n.dataA}`;
-
-  // Bagian II: Perlakuan
-  const tbodyB = document.getElementById('printNeracaTableB');
-  tbodyB.innerHTML = '';
-
-  const perlakuanList = [
-    { no: '1', nama: 'DISIMPAN', jumlah: n.dataB.disimpan, jenis: 'Limbah B3 di TPS 01', izin: 'ADA' },
-    { no: '2', nama: 'DIMANFAATKAN', jumlah: n.dataB.dimanfaatkan, jenis: '-', izin: '-' },
-    { no: '3', nama: 'DIOLAH', jumlah: n.dataB.diolah, jenis: '-', izin: '-' },
-    { no: '4', nama: 'DITIMBUN', jumlah: n.dataB.ditimbun, jenis: '-', izin: '-' },
-    { no: '5', nama: 'DISERAHKAN KE PIHAK KETIGA', jumlah: n.dataB.diserahkanPihakKetiga, jenis: 'PT. Berkat Jaya Sukses', izin: 'ADA' },
-    { no: '6', nama: 'EKSPOR', jumlah: n.dataB.ekspor, jenis: '-', izin: '-' },
-    { no: '7', nama: 'PERLAKUAN LAINNYA', jumlah: n.dataB.lainnya, jenis: '-', izin: '-' }
-  ];
-
-  let totalB = 0;
-  perlakuanList.forEach(p => {
-    totalB += parseFloat(p.jumlah);
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td style="text-align: center;">${p.no}</td>
-      <td><strong>${p.nama}</strong></td>
-      <td style="text-align: right; font-weight: bold;">${p.jumlah}</td>
-      <td>${p.jenis}</td>
-      <td style="text-align: center;">${p.izin === 'ADA' ? '✓' : '-'}</td>
-      <td style="text-align: center;">${p.izin === 'TIDAK ADA' ? '✓' : '-'}</td>
-    `;
-    tbodyB.appendChild(tr);
-  });
-  document.getElementById('printNeracaTotalB').textContent = `B (-) ${totalB.toFixed(3)}`;
-
-  // Ringkasan Formula Residu C & Belum Terkelola D
-  document.getElementById('printNeracaResiduC').textContent = n.dataC || '0.000';
-  document.getElementById('printNeracaBelumD').textContent = n.dataD || '0.000';
-  document.getElementById('printNeracaTotalSisaCD').textContent = (parseFloat(n.dataC || 0) + parseFloat(n.dataD || 0)).toFixed(3);
-  document.getElementById('printNeracaKinerjaRumus').textContent = n.kinerja;
-
-  // Box Tanda Tangan 3 Role (Revisi #3)
-  const boxOp = document.getElementById('printNeracaTtdOp');
-  boxOp.innerHTML = n.ttdOperator ? `<img src="${n.ttdOperator}" style="max-height: 45px;">` : `<span style="font-size: 8pt; color: #888;">(Belum Paraf)</span>`;
-
-  const boxPJ = document.getElementById('printNeracaTtdPJ');
-  boxPJ.innerHTML = n.ttdPJ ? `<img src="${n.ttdPJ}" style="max-height: 45px;">` : `<span style="font-size: 8pt; color: #888;">(Belum Disetujui)</span>`;
-
-  const boxKTT = document.getElementById('printNeracaTtdKTT');
-  boxKTT.innerHTML = n.ttdKTT ? `<img src="${n.ttdKTT}" style="max-height: 45px;">` : `<span style="font-size: 8pt; color: #888;">(Belum Disahkan)</span>`;
-
-  // Trigger Print Portrait
-  document.body.className = 'print-portrait';
-  const printEl = document.getElementById('printNeracaPortraitContainer');
-  printEl.classList.add('active-print');
-
-  setTimeout(() => {
-    window.print();
-    printEl.classList.remove('active-print');
-    document.body.className = '';
-  }, 200);
-}
-
-function generateDraftNeracaPrompt() {
-  const periode = prompt('Nama Periode Neraca (misal: Triwulan III 2026):', 'Triwulan III (Juli - September 2026)');
-  if (!periode) return;
-
-  const masuk = JSON.parse(localStorage.getItem('db_limbah_masuk') || '[]');
-  const keluar = JSON.parse(localStorage.getItem('db_limbah_keluar') || '[]');
-
-  let totalMasukKg = 0;
-  masuk.forEach(m => totalMasukKg += (parseFloat(m.jumlah) || 0));
-  const dataATon = (totalMasukKg / 1000).toFixed(3);
-
-  let totalKeluarKg = 0;
-  keluar.forEach(k => totalKeluarKg += (parseFloat(k.jumlah) || 0));
-  const diserahkanTon = (totalKeluarKg / 1000).toFixed(3);
-  const disimpanTon = Math.max(0, (totalMasukKg - totalKeluarKg) / 1000).toFixed(3);
-
-  const newNeraca = {
-    id: 'NERACA-' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 11),
-    periode: periode,
-    dataA: dataATon,
-    dataB: {
-      disimpan: disimpanTon,
-      dimanfaatkan: '0.000',
-      diolah: '0.000',
-      ditimbun: '0.000',
-      diserahkanPihakKetiga: diserahkanTon,
-      ekspor: '0.000',
-      lainnya: '0.000'
+function renderComplianceDonut(data) {
+  destroyChart('donut');
+  const ctx = document.getElementById('chart-compliance-donut');
+  if (!ctx) return;
+  const rate = parseFloat(data.complianceRate) || 100;
+  chartInstances['donut'] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Compliant', 'Pelanggaran'],
+      datasets: [{ data: [rate, 100 - rate], backgroundColor: ['#22c55e', '#fee2e2'], borderColor: ['#16a34a', '#fca5a5'], borderWidth: 2, hoverOffset: 8 }]
     },
-    dataC: '0.000',
-    dataD: '0.000',
-    kinerja: '100.00%',
-    status: 'Draft (Menunggu Paraf Operator)',
-    ttdOperator: '',
-    ttdPJ: '',
-    ttdKTT: '',
-    createdAt: new Date().toISOString().slice(0, 10)
-  };
-
-  const list = JSON.parse(localStorage.getItem('db_neraca') || '[]');
-  list.unshift(newNeraca);
-  localStorage.setItem('db_neraca', JSON.stringify(list));
-
-  addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Operator', 'GENERATE_NERACA', `Membuat draft Neraca Limbah B3 untuk periode ${periode}`);
-  showToast('Draft Neraca baru berhasil disusun.', 'success');
-  renderNeraca();
-}
-
-// --- E-SIGNATURE CANVAS ---
-let canvas, ctx, isDrawing = false;
-
-function openSignatureModal(neracaId, role) {
-  STATE.signatureTarget = { neracaId, role };
-  document.getElementById('signatureRoleLabel').textContent = `Penandatangan: ${role} (${STATE.currentUser ? STATE.currentUser.nama : 'Pengguna'})`;
-  openModal('modalSignature');
-
-  setTimeout(() => {
-    initSignatureCanvas();
-  }, 150);
-}
-
-function initSignatureCanvas() {
-  canvas = document.getElementById('signatureCanvas');
-  if (!canvas) return;
-  ctx = canvas.getContext('2d');
-
-  canvas.width = canvas.parentElement.clientWidth;
-  canvas.height = 180;
-
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = '#0f172a';
-
-  clearSignatureCanvas();
-
-  canvas.onmousedown = startDrawing;
-  canvas.onmousemove = draw;
-  canvas.onmouseup = stopDrawing;
-
-  canvas.ontouchstart = (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    startDrawing({ clientX: touch.clientX, clientY: touch.clientY });
-  };
-  canvas.ontouchmove = (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    draw({ clientX: touch.clientX, clientY: touch.clientY });
-  };
-  canvas.ontouchend = stopDrawing;
-}
-
-function startDrawing(e) {
-  isDrawing = true;
-  ctx.beginPath();
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  ctx.moveTo(x, y);
-}
-
-function draw(e) {
-  if (!isDrawing) return;
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  ctx.lineTo(x, y);
-  ctx.stroke();
-}
-
-function stopDrawing() { isDrawing = false; }
-
-function clearSignatureCanvas() {
-  if (!ctx || !canvas) return;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-function submitDigitalSignature() {
-  if (!canvas || !STATE.signatureTarget) return;
-  const signatureDataUrl = canvas.toDataURL('image/png');
-
-  const { neracaId, role } = STATE.signatureTarget;
-  const neracaList = JSON.parse(localStorage.getItem('db_neraca') || '[]');
-  const item = neracaList.find(n => n.id === neracaId);
-
-  if (!item) {
-    showToast('Data neraca tidak ditemukan.', 'error');
-    return;
-  }
-
-  if (role === 'Operator') {
-    item.ttdOperator = signatureDataUrl;
-    item.status = 'Menunggu Approval Penanggung Jawab';
-  } else if (role === 'Penanggung Jawab') {
-    item.ttdPJ = signatureDataUrl;
-    item.status = 'Menunggu Pengesahan KTT';
-  } else if (role === 'Manajemen / KTT' || role === 'KTT') {
-    item.ttdKTT = signatureDataUrl;
-    item.status = 'Final';
-  }
-
-  localStorage.setItem('db_neraca', JSON.stringify(neracaList));
-  addAuditLog(STATE.currentUser ? STATE.currentUser.nama : role, 'SIGN_NERACA', `Menandatangani Neraca ${neracaId} sebagai ${role}`);
-
-  showToast(`Tanda tangan elektronik ${role} berhasil dibubuhkan!`, 'success');
-  closeModal('modalSignature');
-  renderNeraca();
-}
-
-// --- 4.8 MASTER RINTEK (DENGAN EDIT & HAPUS - Revisi #1) ---
-function renderMasterRintek() {
-  const table = document.getElementById('tableMasterRintekBody');
-  const data = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-  table.innerHTML = '';
-
-  data.forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="font-mono text-vault-lime font-bold">${r.kodeLimbah}</td>
-      <td class="font-semibold text-white">${r.namaLimbah}</td>
-      <td class="text-xs text-slate-300">${r.sumber}</td>
-      <td class="text-xs text-slate-300">${r.karakteristik}</td>
-      <td class="text-xs font-mono text-slate-300">${r.jenisWadah}</td>
-      <td class="font-mono">${r.kapasitasWadah} ${r.satuan}</td>
-      <td>
-        <span class="badge-status ${r.batasSimpanHari <= 90 ? 'badge-yellow' : 'badge-green'} font-mono">
-          ${r.batasSimpanHari} Hari
-        </span>
-      </td>
-      <td>
-        <div class="flex items-center gap-1.5">
-          <button onclick="openModalEditRintek('${r.kodeLimbah}')" class="btn-action-sm btn-edit" title="Edit"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Edit</button>
-          <button onclick="deleteRintek('${r.kodeLimbah}')" class="btn-action-sm btn-delete" title="Hapus"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus</button>
-        </div>
-      </td>
-    `;
-    table.appendChild(tr);
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '72%',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.parsed.toFixed(1) + '%' } } }
+    },
+    plugins: [{
+      id: 'centerText',
+      afterDraw(chart) {
+        const { ctx: c, chartArea: { top, bottom, left, right } } = chart;
+        const cx = (left + right) / 2, cy = (top + bottom) / 2;
+        c.save();
+        c.font = 'bold 22px JetBrains Mono';
+        c.fillStyle = rate >= 80 ? '#15803d' : rate >= 60 ? '#b45309' : '#dc2626';
+        c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText(rate.toFixed(1) + '%', cx, cy - 8);
+        c.font = '500 11px Montserrat';
+        c.fillStyle = '#94a3b8';
+        c.fillText('Compliant', cx, cy + 14);
+        c.restore();
+      }
+    }]
   });
 }
 
-function openModalTambahRintek() {
-  const kode = prompt('Kode Limbah (misal: B106d):');
-  if (!kode) return;
-  const nama = prompt('Nama Limbah B3:');
-  if (!nama) return;
-  const sumber = prompt('Sumber Limbah B3:', 'Sumber spesifik operasional tambang');
-  const kar = prompt('Karakteristik (Beracun, Mudah Terbakar, dsb):', 'Beracun');
-  const wadah = prompt('Jenis Wadah:', 'Drum');
-  const kap = prompt('Kapasitas Wadah:', '200');
-  const satuan = prompt('Satuan (Kg/Liter):', 'Kg');
-  const hari = prompt('Batas Waktu Simpan (90/180/365 hari):', '90');
-
-  const rintek = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-  rintek.push({
-    kodeLimbah: kode,
-    namaLimbah: nama,
-    sumber: sumber || 'Tambang',
-    karakteristik: kar || 'Beracun',
-    jenisWadah: wadah || 'Drum',
-    kapasitasWadah: parseFloat(kap) || 200,
-    satuan: satuan || 'Kg',
-    batasSimpanHari: parseInt(hari) || 90
-  });
-
-  localStorage.setItem('db_rintek', JSON.stringify(rintek));
-  addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'ADD_RINTEK', `Menambahkan master rintek ${nama} (${kode})`);
-  showToast('Data Rintek berhasil ditambahkan.', 'success');
-  renderMasterRintek();
-}
-
-function openModalEditRintek(kode) {
-  const rintek = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-  const item = rintek.find(r => r.kodeLimbah === kode);
-  if (!item) return;
-
-  document.getElementById('editRintekOriginalKode').value = item.kodeLimbah;
-  document.getElementById('editRintekKode').value = item.kodeLimbah;
-  document.getElementById('editRintekNama').value = item.namaLimbah;
-  document.getElementById('editRintekSumber').value = item.sumber;
-  document.getElementById('editRintekKarakteristik').value = item.karakteristik;
-  document.getElementById('editRintekWadah').value = item.jenisWadah;
-  document.getElementById('editRintekKapasitas').value = item.kapasitasWadah;
-  document.getElementById('editRintekSatuan').value = item.satuan;
-  document.getElementById('editRintekBatasHari').value = item.batasSimpanHari;
-
-  openModal('modalEditRintek');
-}
-
-function handleSaveEditRintek(e) {
-  e.preventDefault();
-  const origKode = document.getElementById('editRintekOriginalKode').value;
-  const kode = document.getElementById('editRintekKode').value.trim();
-  const nama = document.getElementById('editRintekNama').value.trim();
-  const sumber = document.getElementById('editRintekSumber').value.trim();
-  const kar = document.getElementById('editRintekKarakteristik').value.trim();
-  const wadah = document.getElementById('editRintekWadah').value.trim();
-  const kap = parseFloat(document.getElementById('editRintekKapasitas').value) || 200;
-  const sat = document.getElementById('editRintekSatuan').value;
-  const hari = parseInt(document.getElementById('editRintekBatasHari').value) || 90;
-
-  const rintek = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-  const idx = rintek.findIndex(r => r.kodeLimbah === origKode);
-
-  if (idx !== -1) {
-    rintek[idx] = {
-      kodeLimbah: kode,
-      namaLimbah: nama,
-      sumber: sumber,
-      karakteristik: kar,
-      jenisWadah: wadah,
-      kapasitasWadah: kap,
-      satuan: sat,
-      batasSimpanHari: hari
-    };
-    localStorage.setItem('db_rintek', JSON.stringify(rintek));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'EDIT_RINTEK', `Mengubah rintek ${nama} (${kode})`);
-    showToast('Data Rintek berhasil diperbarui.', 'success');
-    closeModal('modalEditRintek');
-    renderMasterRintek();
-  }
-}
-
-function deleteRintek(kode) {
-  if (confirm(`Apakah Anda yakin ingin menghapus limbah Rintek ${kode}?`)) {
-    let rintek = JSON.parse(localStorage.getItem('db_rintek') || '[]');
-    rintek = rintek.filter(r => r.kodeLimbah !== kode);
-    localStorage.setItem('db_rintek', JSON.stringify(rintek));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'DELETE_RINTEK', `Menghapus limbah rintek ${kode}`);
-    showToast('Data Rintek berhasil dihapus.', 'info');
-    renderMasterRintek();
-  }
-}
-
-// --- 4.9 MASTER PIHAK KETIGA (DENGAN EDIT & HAPUS - Revisi #1) ---
-function renderMasterPihakKetiga() {
-  const table = document.getElementById('tablePihakKetigaBody');
-  const data = JSON.parse(localStorage.getItem('db_pihak_ketiga') || '[]');
-  table.innerHTML = '';
-
-  data.forEach(pk => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="font-mono text-sky-400">${pk.id}</td>
-      <td class="font-bold text-white">${pk.namaPerusahaan}</td>
-      <td class="font-mono text-xs text-vault-lime">${pk.noIzin}</td>
-      <td class="text-xs text-slate-300">${pk.alamat}</td>
-      <td class="text-xs text-slate-400">${pk.kontak}</td>
-      <td>
-        <div class="flex items-center gap-1.5">
-          <button onclick="openModalEditPK('${pk.id}')" class="btn-action-sm btn-edit"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Edit</button>
-          <button onclick="deletePihakKetiga('${pk.id}')" class="btn-action-sm btn-delete"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus</button>
-        </div>
-      </td>
-    `;
-    table.appendChild(tr);
-  });
-}
-
-function openModalTambahPihakKetiga() {
-  const nama = prompt('Nama Perusahaan Pihak Ketiga:');
-  if (!nama) return;
-  const izin = prompt('Nomor Izin Operasional KLHK:');
-  const alamat = prompt('Alamat Operasional:', 'Balikpapan / Samarinda');
-  const kontak = prompt('Kontak Person / Telepon:');
-
-  const pkList = JSON.parse(localStorage.getItem('db_pihak_ketiga') || '[]');
-  const newId = 'PK-' + ('00' + (pkList.length + 1)).slice(-3);
-
-  pkList.push({
-    id: newId,
-    namaPerusahaan: nama,
-    noIzin: izin || 'Dalam Proses',
-    alamat: alamat || 'Kalimantan Timur',
-    kontak: kontak || '-'
-  });
-
-  localStorage.setItem('db_pihak_ketiga', JSON.stringify(pkList));
-  addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'ADD_PIHAK_KETIGA', `Menambahkan mitra pihak ketiga ${nama}`);
-  showToast('Pihak ketiga berhasil ditambahkan.', 'success');
-  renderMasterPihakKetiga();
-}
-
-function openModalEditPK(id) {
-  const pkList = JSON.parse(localStorage.getItem('db_pihak_ketiga') || '[]');
-  const item = pkList.find(p => p.id === id);
-  if (!item) return;
-
-  document.getElementById('editPKId').value = item.id;
-  document.getElementById('editPKNama').value = item.namaPerusahaan;
-  document.getElementById('editPKIzin').value = item.noIzin;
-  document.getElementById('editPKAlamat').value = item.alamat;
-  document.getElementById('editPKKontak').value = item.kontak;
-
-  openModal('modalEditPK');
-}
-
-function handleSaveEditPK(e) {
-  e.preventDefault();
-  const id = document.getElementById('editPKId').value;
-  const nama = document.getElementById('editPKNama').value.trim();
-  const izin = document.getElementById('editPKIzin').value.trim();
-  const alamat = document.getElementById('editPKAlamat').value.trim();
-  const kontak = document.getElementById('editPKKontak').value.trim();
-
-  const pkList = JSON.parse(localStorage.getItem('db_pihak_ketiga') || '[]');
-  const idx = pkList.findIndex(p => p.id === id);
-
-  if (idx !== -1) {
-    pkList[idx] = { id, namaPerusahaan: nama, noIzin: izin, alamat, kontak };
-    localStorage.setItem('db_pihak_ketiga', JSON.stringify(pkList));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'EDIT_PIHAK_KETIGA', `Mengubah pihak ketiga ${nama}`);
-    showToast('Data pihak ketiga berhasil diperbarui.', 'success');
-    closeModal('modalEditPK');
-    renderMasterPihakKetiga();
-  }
-}
-
-function deletePihakKetiga(id) {
-  if (confirm(`Apakah Anda yakin ingin menghapus pihak ketiga ${id}?`)) {
-    let pkList = JSON.parse(localStorage.getItem('db_pihak_ketiga') || '[]');
-    pkList = pkList.filter(p => p.id !== id);
-    localStorage.setItem('db_pihak_ketiga', JSON.stringify(pkList));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'DELETE_PIHAK_KETIGA', `Menghapus pihak ketiga ${id}`);
-    showToast('Pihak ketiga berhasil dihapus.', 'info');
-    renderMasterPihakKetiga();
-  }
-}
-
-// --- 4.10 MASTER USERS (DENGAN EDIT & HAPUS - Revisi #1) ---
-function renderMasterUsers() {
-  const table = document.getElementById('tableUsersBody');
-  const data = JSON.parse(localStorage.getItem('db_users') || '[]');
-  table.innerHTML = '';
-
-  data.forEach(u => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="font-mono text-sky-400">${u.id}</td>
-      <td class="font-bold text-white">${u.nama}</td>
-      <td class="font-mono text-xs text-slate-300">${u.username}</td>
-      <td><span class="badge-status badge-blue">${u.role}</span></td>
-      <td><span class="badge-status ${u.status === 'Aktif' ? 'badge-green' : 'badge-red'}">${u.status}</span></td>
-      <td>
-        <div class="flex items-center gap-1.5">
-          <button onclick="openModalEditUser('${u.id}')" class="btn-action-sm btn-edit"><i data-lucide="edit-2" class="w-3.5 h-3.5"></i> Edit</button>
-          <button onclick="resetUserPassword('${u.username}')" class="btn-action-sm role-quick-btn">Reset Pass</button>
-          <button onclick="deleteUser('${u.id}')" class="btn-action-sm btn-delete"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus</button>
-        </div>
-      </td>
-    `;
-    table.appendChild(tr);
-  });
-}
-
-function openModalTambahUser() {
-  const nama = prompt('Nama Lengkap:');
-  if (!nama) return;
-  const username = prompt('Username Login:');
-  if (!username) return;
-  const role = prompt('Pilih Role (Operator / Penanggung Jawab / Admin HSE / Manajemen / KTT):', 'Operator');
-  const password = prompt('Password Awal:', 'password123');
-
-  const users = JSON.parse(localStorage.getItem('db_users') || '[]');
-  const newId = 'USR-' + ('00' + (users.length + 1)).slice(-2);
-
-  users.push({
-    id: newId,
-    nama: nama,
-    username: username,
-    password: password || 'password123',
-    role: role || 'Operator',
-    status: 'Aktif',
-    fotoProfil: ''
-  });
-
-  localStorage.setItem('db_users', JSON.stringify(users));
-  addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'ADD_USER', `Mendaftarkan pengguna baru: ${username} (${role})`);
-  showToast('Pengguna baru berhasil didaftarkan.', 'success');
-  renderMasterUsers();
-}
-
-function openModalEditUser(id) {
-  const users = JSON.parse(localStorage.getItem('db_users') || '[]');
-  const item = users.find(u => u.id === id);
-  if (!item) return;
-
-  document.getElementById('editUserId').value = item.id;
-  document.getElementById('editUserNama').value = item.nama;
-  document.getElementById('editUserUsername').value = item.username;
-  document.getElementById('editUserRole').value = item.role;
-  document.getElementById('editUserStatus').value = item.status || 'Aktif';
-
-  openModal('modalEditUser');
-}
-
-function handleSaveEditUser(e) {
-  e.preventDefault();
-  const id = document.getElementById('editUserId').value;
-  const nama = document.getElementById('editUserNama').value.trim();
-  const username = document.getElementById('editUserUsername').value.trim();
-  const role = document.getElementById('editUserRole').value;
-  const status = document.getElementById('editUserStatus').value;
-
-  const users = JSON.parse(localStorage.getItem('db_users') || '[]');
-  const idx = users.findIndex(u => u.id === id);
-
-  if (idx !== -1) {
-    users[idx].nama = nama;
-    users[idx].username = username;
-    users[idx].role = role;
-    users[idx].status = status;
-
-    localStorage.setItem('db_users', JSON.stringify(users));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'EDIT_USER', `Mengubah data user ${username}`);
-    showToast('Data pengguna berhasil diperbarui.', 'success');
-    closeModal('modalEditUser');
-    renderMasterUsers();
-  }
-}
-
-function deleteUser(id) {
-  if (confirm(`Apakah Anda yakin ingin menghapus pengguna ${id}?`)) {
-    let users = JSON.parse(localStorage.getItem('db_users') || '[]');
-    users = users.filter(u => u.id !== id);
-    localStorage.setItem('db_users', JSON.stringify(users));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'DELETE_USER', `Menghapus pengguna ${id}`);
-    showToast('Pengguna berhasil dihapus.', 'info');
-    renderMasterUsers();
-  }
-}
-
-function resetUserPassword(username) {
-  const newPass = prompt(`Reset password untuk pengguna ${username}:`, 'password123');
-  if (!newPass) return;
-
-  const users = JSON.parse(localStorage.getItem('db_users') || '[]');
-  const u = users.find(user => user.username === username);
-  if (u) {
-    u.password = newPass;
-    localStorage.setItem('db_users', JSON.stringify(users));
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'RESET_PASSWORD', `Mereset password user ${username}`);
-    showToast(`Password untuk ${username} berhasil diubah.`, 'info');
-  }
-}
-
-// --- 4.11 SETTINGS, UPLOAD LOGO & BACKGROUND (Revisi #5) ---
-function renderSettingsAndAudit() {
-  document.getElementById('inputGasUrl').value = STATE.gasApiUrl;
-  const auditTable = document.getElementById('tableAuditLogsBody');
-  const logs = JSON.parse(localStorage.getItem('db_audit') || '[]');
-  auditTable.innerHTML = '';
-
-  logs.slice().reverse().slice(0, 30).forEach(log => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="font-mono text-slate-400 whitespace-nowrap">${log.timestamp}</td>
-      <td class="font-medium text-white">${log.user}</td>
-      <td class="font-mono text-sky-400 font-bold">${log.aksi}</td>
-      <td class="text-slate-300">${log.keterangan}</td>
-    `;
-    auditTable.appendChild(tr);
-  });
-}
-
-function handleUploadLogo(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const base64 = event.target.result;
-    const cfg = JSON.parse(localStorage.getItem('db_settings') || '{}');
-    cfg.logoBase64 = base64;
-    localStorage.setItem('db_settings', JSON.stringify(cfg));
-
-    applyCompanySettingsUI();
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'UPLOAD_LOGO', 'Mengunggah logo resmi perusahaan');
-    showToast('Logo perusahaan berhasil diperbarui dan diterapkan ke seluruh dokumen!', 'success');
-  };
-  reader.readAsDataURL(file);
-}
-
-function handleUploadBgLogin(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const base64 = event.target.result;
-    const cfg = JSON.parse(localStorage.getItem('db_settings') || '{}');
-    cfg.loginBgBase64 = base64;
-    localStorage.setItem('db_settings', JSON.stringify(cfg));
-
-    applyCompanySettingsUI();
-    addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'UPLOAD_LOGIN_BG', 'Mengubah wallpaper background halaman login');
-    showToast('Foto background halaman login berhasil diperbarui!', 'success');
-  };
-  reader.readAsDataURL(file);
-}
-
-function saveSettingsForm() {
-  const cfg = JSON.parse(localStorage.getItem('db_settings') || '{}');
-
-  cfg.namaPerusahaan = document.getElementById('setPerusahaan').value.trim();
-  cfg.bidangUsaha = document.getElementById('setBidangUsaha').value.trim();
-  cfg.alamatKantor = document.getElementById('setAlamatKantor').value.trim();
-  cfg.telpPerusahaan = document.getElementById('setTelp').value.trim();
-  cfg.emailPerusahaan = document.getElementById('setEmail').value.trim();
-  cfg.lokasiTps = document.getElementById('setLokasi').value.trim();
-  cfg.luasTps = document.getElementById('setLuas').value.trim();
-  cfg.kapasitasMaksTon = document.getElementById('setKapasitas').value.trim();
-  cfg.pjTeknis = document.getElementById('setPJ').value.trim();
-
-  localStorage.setItem('db_settings', JSON.stringify(cfg));
-  applyCompanySettingsUI();
-
-  addAuditLog(STATE.currentUser ? STATE.currentUser.nama : 'Admin', 'UPDATE_SETTINGS', 'Menyimpan konfigurasi identitas perusahaan');
-  showToast('Identitas dan profil perusahaan berhasil disimpan!', 'success');
-}
-
-function saveGasUrlConfig() {
-  const url = document.getElementById('inputGasUrl').value.trim();
-  STATE.gasApiUrl = url;
-  localStorage.setItem('enviromine_gas_url', url);
-  updateGasStatusBadge();
-  showToast('URL Google Apps Script disimpan.', 'success');
-}
-
-function resetToLocalEngine() {
-  STATE.gasApiUrl = '';
-  localStorage.removeItem('enviromine_gas_url');
-  document.getElementById('inputGasUrl').value = '';
-  updateGasStatusBadge();
-  showToast('Kembali ke Local Engine.', 'info');
-}
-
-// ==========================================================================
-// 5. HELPER & UI UTILITIES
-// ==========================================================================
-function openModal(id) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.classList.remove('hidden');
-    lucide.createIcons();
-  }
-}
-
-function closeModal(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.add('hidden');
-}
-
-function showToast(message, type = 'info') {
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  
-  let bgClass = 'bg-slate-900 border-slate-700 text-white';
-  let iconName = 'info';
-
-  if (type === 'success') {
-    bgClass = 'bg-slate-900 border-emerald-500/50 text-emerald-300';
-    iconName = 'check-circle';
-  } else if (type === 'warning') {
-    bgClass = 'bg-slate-900 border-amber-500/50 text-amber-300';
-    iconName = 'alert-triangle';
-  } else if (type === 'error') {
-    bgClass = 'bg-slate-900 border-rose-500/50 text-rose-300';
-    iconName = 'x-circle';
-  }
-
-  toast.className = `p-3.5 px-4 rounded-2xl border shadow-2xl flex items-center gap-3 text-xs font-medium pointer-events-auto transform transition-all duration-300 translate-y-2 opacity-0 ${bgClass}`;
-  toast.innerHTML = `
-    <i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i>
-    <span>${message}</span>
-  `;
-
-  container.appendChild(toast);
-  lucide.createIcons();
-
-  setTimeout(() => {
-    toast.classList.remove('translate-y-2', 'opacity-0');
-  }, 10);
-
-  setTimeout(() => {
-    toast.classList.add('opacity-0', 'translate-y-2');
-    setTimeout(() => toast.remove(), 300);
-  }, 4000);
-}
-
-function addAuditLog(user, aksi, keterangan) {
-  const logs = JSON.parse(localStorage.getItem('db_audit') || '[]');
-  const now = new Date().toISOString().slice(0, 16).replace('T', ' ');
-  logs.push({
-    id: 'LOG-' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14),
-    user: user || 'System',
-    aksi: aksi,
-    timestamp: now,
-    keterangan: keterangan
-  });
-  localStorage.setItem('db_audit', JSON.stringify(logs));
-}
-
-function updateGasStatusBadge() {
-  const badgeText = document.getElementById('backendStatusText');
-  if (!badgeText) return;
-
-  if (STATE.gasApiUrl) {
-    badgeText.textContent = 'GAS API: Terhubung';
-    badgeText.parentElement.className = 'cursor-pointer text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 flex items-center gap-1.5';
-  } else {
-    badgeText.textContent = 'Mode: Local Engine';
-    badgeText.parentElement.className = 'cursor-pointer text-[11px] font-mono px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-sky-400 flex items-center gap-1.5 hover:border-sky-400';
-  }
-}
-
-function openGasSettingsModal() {
-  document.getElementById('modalGasUrlInput').value = STATE.gasApiUrl;
-  openModal('modalGasConfig');
-}
-
-function saveModalGasUrl() {
-  const val = document.getElementById('modalGasUrlInput').value.trim();
-  STATE.gasApiUrl = val;
-  localStorage.setItem('enviromine_gas_url', val);
-  updateGasStatusBadge();
-  closeModal('modalGasConfig');
-  showToast('Konfigurasi Google Apps Script diperbarui.', 'success');
-}
-
-function toggleNotificationPopover() {
-  const popover = document.getElementById('notifPopover');
-  popover.classList.toggle('hidden');
-}
-
-function setupGlobalShortcuts() {
-  window.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      const search = document.getElementById('globalSearchInput');
-      if (search) search.focus();
+function renderPondBarChart(data) {
+  destroyChart('pond');
+  const ctx = document.getElementById('chart-pond-compliance');
+  if (!ctx) return;
+  const pondData = data.pondCompliance || [];
+  if (!pondData.length) return;
+  chartInstances['pond'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: pondData.map(p => p.pond),
+      datasets: [{
+        label: 'Compliance Rate (%)',
+        data: pondData.map(p => p.rate),
+        backgroundColor: pondData.map(p => p.rate >= 80 ? 'rgba(34,197,94,0.8)' : p.rate >= 60 ? 'rgba(251,191,36,0.8)' : 'rgba(239,68,68,0.8)'),
+        borderColor: pondData.map(p => p.rate >= 80 ? '#16a34a' : p.rate >= 60 ? '#d97706' : '#dc2626'),
+        borderWidth: 1.5, borderRadius: 6, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'Compliant: ' + ctx.parsed.y + '% (' + pondData[ctx.dataIndex]?.total + ' sampel)' } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 10 } } },
+        y: { min: 0, max: 100, title: { display: true, text: '%', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      }
     }
   });
 }
 
-function handleGlobalSearch(e) {
-  const query = e.target.value.toLowerCase().trim();
-  if (e.key === 'Enter' && query) {
-    navigateTo('logbook');
+function destroyChart(key) {
+  if (chartInstances[key]) { try { chartInstances[key].destroy(); } catch (e) {} chartInstances[key] = null; }
+}
+
+// ============================================================
+// 6. FORM HARIAN
+// ============================================================
+function prefillFormHarian() {
+  const now = new Date();
+  document.getElementById('fh-tanggal').value = now.toISOString().slice(0, 10);
+  document.getElementById('fh-jam').value = now.toTimeString().slice(0, 5);
+  updateSensorThresholdLabels();
+}
+document.querySelectorAll('.flow-btn').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.flow-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+}));
+
+document.getElementById('btn-gps').addEventListener('click', captureCurrentGPS);
+function captureCurrentGPS() {
+  if (!navigator.geolocation) { Swal.fire('Tidak Didukung', 'Perangkat tidak mendukung GPS.', 'warning'); return; }
+  const indicator = document.getElementById('gps-indicator');
+  indicator.classList.remove('hidden'); indicator.textContent = 'Mencari sinyal…'; indicator.className = 'gps-status-indicator medium';
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude, longitude, accuracy } = pos.coords;
+    document.getElementById('fh-koord-gps').value = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    let cls = 'high', label = `Akurasi Tinggi (±${accuracy.toFixed(1)}m)`;
+    if (accuracy > 30) { cls = 'low'; label = `Akurasi Rendah (±${accuracy.toFixed(1)}m)`; }
+    else if (accuracy > 10) { cls = 'medium'; label = `Akurasi Sedang (±${accuracy.toFixed(1)}m)`; }
+    indicator.className = 'gps-status-indicator ' + cls; indicator.textContent = label;
+  }, err => { indicator.classList.add('hidden'); Swal.fire('Gagal Mengambil Lokasi', err.message, 'error'); }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+function updateSensorThresholdLabels() {
+  const map = { PH: { id: 'ph', unit: '' }, TSS: { id: 'tss', unit: 'mg/L' }, FE: { id: 'fe', unit: 'mg/L' }, MN: { id: 'mn', unit: 'mg/L' } };
+  AppState.bakuMutu.forEach(b => {
+    const m = map[b.Param_Code]; if (!m) return;
+    const el = document.getElementById('sensor-threshold-' + m.id);
+    if (el) el.textContent = `Baku Mutu: ${b.Batas_Min} – ${b.Batas_Max} ${b.Satuan !== '-' ? b.Satuan : ''}`.trim();
+  });
+}
+
+document.querySelectorAll('.param-input').forEach(input => input.addEventListener('input', () => validateThresholdInput(input)));
+function validateThresholdInput(input) {
+  const code = input.getAttribute('data-param');
+  const rule = AppState.bakuMutu.find(b => b.Param_Code === code);
+  if (!rule) return;
+  const idMap = { PH: 'ph', TSS: 'tss', FE: 'fe', MN: 'mn' };
+  const suffix = idMap[code];
+  const val = parseFloat(input.value);
+  const outOfBounds = !isNaN(val) && (val < Number(rule.Batas_Min) || val > Number(rule.Batas_Max));
+  document.getElementById('sensor-card-' + suffix).classList.toggle('violation', outOfBounds);
+  const badge = document.getElementById('sensor-badge-' + suffix);
+  badge.textContent = outOfBounds ? 'PELANGGARAN' : 'COMPLIANT';
+  badge.className = 'badge ' + (outOfBounds ? 'badge-violation' : 'badge-compliant');
+  document.getElementById('fh-anomaly-banner').classList.toggle('hidden', !document.querySelectorAll('.sensor-card.violation').length);
+}
+
+document.querySelector('label.photo-add-btn').addEventListener('click', () => document.getElementById('fh-photo-input').click());
+document.getElementById('fh-photo-input').addEventListener('change', async function (e) {
+  const files = Array.from(e.target.files);
+  if (AppState.photos.length + files.length > 5) { Swal.fire('Batas Foto', 'Maksimal 5 foto per pemantauan.', 'warning'); return; }
+  for (const file of files) { AppState.photos.push(await compressImage(file, 1280, 0.7)); renderPhotoGallery(); }
+  e.target.value = '';
+});
+
+function compressImage(file, maxWidth = 1280, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = evt => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = img.width * scale; canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject; img.src = evt.target.result;
+    };
+    reader.onerror = reject; reader.readAsDataURL(file);
+  });
+}
+
+function renderPhotoGallery() {
+  const gallery = document.getElementById('photo-gallery');
+  const addBtn = gallery.querySelector('label.photo-add-btn');
+  gallery.querySelectorAll('.preview-gallery-item').forEach(el => el.remove());
+  AppState.photos.forEach((base64, idx) => {
+    const div = document.createElement('div'); div.className = 'preview-gallery-item';
+    div.innerHTML = `<img src="${base64}"><button type="button" class="remove-btn" data-idx="${idx}">&times;</button>`;
+    gallery.insertBefore(div, addBtn);
+  });
+  gallery.querySelectorAll('.remove-btn').forEach(btn => btn.addEventListener('click', () => { AppState.photos.splice(Number(btn.getAttribute('data-idx')), 1); renderPhotoGallery(); }));
+  addBtn.style.display = AppState.photos.length >= 5 ? 'none' : 'flex';
+}
+
+function saveDraftLocal(payload) { try { localStorage.setItem(LOCALSTORAGE_DRAFT_KEY, JSON.stringify(payload)); } catch (e) {} }
+function checkDraftLocal() {
+  const raw = localStorage.getItem(LOCALSTORAGE_DRAFT_KEY);
+  if (raw) {
+    Swal.fire({ icon: 'info', title: 'Draf Tersimpan Ditemukan', text: 'Terdapat data pemantauan yang belum terkirim. Kirim sekarang?', showCancelButton: true, confirmButtonText: 'Kirim Sekarang', cancelButtonText: 'Nanti' })
+      .then(res => { if (res.isConfirmed) submitDailyLogPayload(JSON.parse(raw)); });
   }
 }
+
+document.getElementById('form-harian').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const flowBtn = document.querySelector('.flow-btn.active');
+  submitDailyLogPayload({
+    Pond_ID: document.getElementById('fh-pond').value,
+    Titik_Aliran: flowBtn ? flowBtn.getAttribute('data-val') : 'OUTLET',
+    Tanggal_Sampling: document.getElementById('fh-tanggal').value,
+    Jam_Sampling: document.getElementById('fh-jam').value,
+    Koordinat_Manual: document.getElementById('fh-koord-manual').value,
+    Koordinat_GPS: document.getElementById('fh-koord-gps').value,
+    Nilai_pH: document.getElementById('fh-ph').value,
+    Nilai_TSS: document.getElementById('fh-tss').value,
+    Nilai_Fe: document.getElementById('fh-fe').value,
+    Nilai_Mn: document.getElementById('fh-mn').value,
+    Debit_Air: document.getElementById('fh-debit').value,
+    Curah_Hujan: document.getElementById('fh-hujan').value,
+    fotos: AppState.photos
+  });
+});
+
+async function submitDailyLogPayload(payload) {
+  saveDraftLocal(payload);
+  try {
+    const res = await callServer('apiSaveDailyLog', AppState.token, payload);
+    localStorage.removeItem(LOCALSTORAGE_DRAFT_KEY);
+    AppState.photos = []; renderPhotoGallery();
+    document.getElementById('form-harian').reset(); prefillFormHarian();
+    document.getElementById('gps-indicator').classList.add('hidden');
+    document.querySelectorAll('.sensor-card').forEach(c => c.classList.remove('violation'));
+    document.querySelectorAll('.badge[id^="sensor-badge-"]').forEach(b => { b.textContent = 'COMPLIANT'; b.className = 'badge badge-compliant'; });
+    document.getElementById('fh-anomaly-banner').classList.add('hidden');
+
+    if (res.Status_Mutu === 'MELEBIHI BAKU MUTU') {
+      Swal.fire({ icon: 'warning', title: 'Pelanggaran Baku Mutu Terdeteksi!', html: `Parameter: <b>${res.Pelanggaran}</b><br>Segera buka Disposisi & Investigasi.`, confirmButtonText: 'Buka Disposisi' })
+        .then(r => { if (r.isConfirmed) { navigateTo('disposisi-investigasi'); openDisposisiModal(res.Log_ID, res.Pelanggaran, payload.Pond_ID); } });
+    } else {
+      Swal.fire({ icon: 'success', title: 'Data Tersimpan', text: 'Status Mutu: NORMAL', timer: 2000, showConfirmButton: false });
+    }
+    refreshDisposisiBadge();
+    if (AppState.currentView === 'log-table') refreshLogTable();
+    if (AppState.currentView === 'dashboard') refreshDashboard(true);
+    if (AppState.currentView === 'laporan') refreshReportTable();
+  } catch (err) {
+    Swal.fire('Tersimpan Sebagai Draf', 'Koneksi bermasalah. Data akan dikirim ulang otomatis.', 'info');
+  }
+}
+
+// ============================================================
+// 7. LEDGER LOG HARIAN
+// ============================================================
+async function refreshLogTable() {
+  const filters = {
+    startDate: document.getElementById('filter-start').value,
+    endDate: document.getElementById('filter-end').value,
+    pondId: document.getElementById('filter-pond').value,
+    statusMutu: document.getElementById('filter-status').value
+  };
+  const rows = await callServer('apiGetDailyLogs', AppState.token, filters);
+
+  if (!rows || !rows.length) {
+    document.getElementById('log-table-body').innerHTML = '<tr><td colspan="11" class="text-center text-muted" style="padding:2rem;">Belum ada data. Gunakan Form Lapangan untuk input data.</td></tr>';
+    document.getElementById('ledger-audit-strip').innerHTML = 'Total sampel: <b>0</b>';
+    return;
+  }
+
+  document.getElementById('log-table-body').innerHTML = rows.map(r => `
+    <tr>
+      <td class="mono" style="font-size:11px;">${r.Log_ID}</td>
+      <td class="mono" style="font-size:11px;">${formatDisplayDate(r.Tanggal_Sampling)} ${formatDisplayTime(r.Jam_Sampling)}</td>
+      <td>${r.Pond_ID}</td><td>${r.Titik_Aliran}</td>
+      <td class="numeric">${Number(r.Nilai_pH).toFixed(2)}</td>
+      <td class="numeric">${Number(r.Nilai_TSS).toFixed(1)}</td>
+      <td class="numeric">${Number(r.Nilai_Fe).toFixed(2)}</td>
+      <td class="numeric">${Number(r.Nilai_Mn).toFixed(2)}</td>
+      <td><span class="badge ${r.Status_Mutu === 'NORMAL' ? 'badge-compliant' : 'badge-violation'}">${r.Status_Mutu}</span></td>
+      <td><span class="badge badge-info" style="font-size:9.5px;">${r.Status_Validasi || 'DRAFT'}</span></td>
+      <td style="white-space:nowrap;">
+        ${AppState.session.role !== 'OPERATOR' && r.Status_Validasi === 'DRAFT'
+          ? `<button class="btn btn-sm btn-outline" onclick="verifyLog('${r.Log_ID}','VERIFIED_SPV')"><i class="fa-solid fa-check me-1"></i>Verifikasi</button>` : ''}
+        ${AppState.session.role === 'MANAJEMEN' && r.Status_Validasi === 'VERIFIED_SPV'
+          ? `<button class="btn btn-sm btn-primary" onclick="verifyLog('${r.Log_ID}','APPROVED_KTT')">Setujui</button>` : ''}
+        ${r.Status_Mutu !== 'NORMAL' && AppState.session.role !== 'OPERATOR'
+          ? `<button class="btn btn-sm btn-danger ms-1" onclick="openDisposisiModal('${r.Log_ID}','${r.Status_Mutu}','${r.Pond_ID}')"><i class="fa-solid fa-triangle-exclamation"></i></button>` : ''}
+        <button class="btn btn-sm btn-outline ms-1 text-danger" style="border-color:#FCA5A5;color:#DC2626;" onclick="deleteDailyLog('${r.Log_ID}')" title="Hapus Data"><i class="fa-solid fa-trash"></i></button>
+      </td>
+    </tr>`).join('');
+
+  const normal = rows.filter(r => r.Status_Mutu === 'NORMAL').length;
+  const melebihi = rows.length - normal;
+  const pendingSpv = rows.filter(r => r.Status_Validasi === 'DRAFT').length;
+  const pendingKtt = rows.filter(r => r.Status_Validasi === 'VERIFIED_SPV').length;
+  document.getElementById('ledger-audit-strip').innerHTML = `Total: <b>${rows.length}</b> · Normal: <b>${normal}</b> · Melebihi Baku: <b style="color:var(--violation-text);">${melebihi}</b> · Pending SPV: <b>${pendingSpv}</b> · Pending KTT: <b>${pendingKtt}</b>`;
+}
+
+['filter-start', 'filter-end', 'filter-pond', 'filter-status'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', refreshLogTable);
+});
+
+async function verifyLog(logId, status) {
+  await callServer('apiVerifyDailyLog', AppState.token, logId, status);
+  Swal.fire({ icon: 'success', title: 'Status Diperbarui', timer: 1500, showConfirmButton: false });
+  refreshLogTable(); refreshDashboard(true);
+}
+
+async function deleteDailyLog(logId) {
+  const result = await Swal.fire({
+    title: 'Hapus Data Sampling?',
+    text: `Data log ${logId} akan dihapus secara permanen dari sistem.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#DC2626',
+    cancelButtonColor: '#64748B',
+    confirmButtonText: '<i class="fa-solid fa-trash me-1"></i> Ya, Hapus',
+    cancelButtonText: 'Batal'
+  });
+  if (!result.isConfirmed) return;
+  try {
+    await callServer('apiDeleteDailyLog', AppState.token, logId);
+    Swal.fire({ icon: 'success', title: 'Data Berhasil Dihapus', timer: 1500, showConfirmButton: false });
+    refreshLogTable(); refreshDashboard(true);
+  } catch (err) {
+    Swal.fire('Gagal Menghapus', err.message || 'Terjadi kesalahan.', 'error');
+  }
+}
+
+// ============================================================
+// 8. DISPOSISI & INVESTIGASI
+// ============================================================
+async function refreshDisposisiList() {
+  const rows = await callServer('apiGetDisposisiList', AppState.token, {});
+  document.getElementById('disp-kpi-open').textContent = rows.filter(r => r.Status_Penanganan === 'OPEN').length;
+  document.getElementById('disp-kpi-progress').textContent = rows.filter(r => r.Status_Penanganan === 'IN_PROGRESS').length;
+  document.getElementById('disp-kpi-resolved').textContent = rows.filter(r => r.Status_Penanganan === 'RESOLVED').length;
+
+  document.getElementById('disposisi-list').innerHTML = rows.map(r => `
+    <div class="incident-card ${r.Status_Penanganan.toLowerCase()}">
+      <div class="incident-header">
+        <span class="incident-id">${r.Disposisi_ID} · ${r.Pond_ID}</span>
+        <span class="badge ${r.Status_Penanganan === 'OPEN' ? 'badge-violation' : r.Status_Penanganan === 'IN_PROGRESS' ? 'badge-warning' : 'badge-compliant'}">${r.Status_Penanganan.replace('_', ' ')}</span>
+      </div>
+      <div class="incident-grid">
+        <div class="incident-param-box"><div class="incident-field-label">Parameter</div><div class="val">${r.Parameter_Melanggar}</div></div>
+        <div><div class="incident-field-label">Instruksi</div><div style="font-size:12.5px;">${r.Instruksi_Tindak_Lanjut || '-'}</div></div>
+        <div><div class="incident-field-label">PIC</div><div style="font-size:12.5px;">${r.PIC_Tindak_Lanjut || '-'}</div></div>
+      </div>
+      <div class="incident-field-label">Temuan</div>
+      <p style="font-size:12.5px;margin-bottom:.7rem;">${r.Temuan_Investigasi || '-'}</p>
+      <div class="d-flex gap-2 flex-wrap align-items-center">
+        ${r.Status_Penanganan === 'OPEN' ? `<button class="btn btn-sm btn-outline" onclick="updateInvestigasi('${r.Disposisi_ID}','IN_PROGRESS')">Mulai Investigasi</button>` : ''}
+        ${r.Status_Penanganan === 'IN_PROGRESS' && !r.Verified_By ? `<button class="btn btn-sm btn-outline" onclick="verifyDisposisiRole('${r.Disposisi_ID}','SUPERVISOR')">Verifikasi SPV</button>` : ''}
+        ${r.Verified_By && r.Status_Penanganan !== 'RESOLVED' ? `<button class="btn btn-sm btn-primary" onclick="verifyDisposisiRole('${r.Disposisi_ID}','MANAJEMEN')">Approve KTT</button>` : ''}
+        <button class="btn btn-sm btn-danger ms-auto" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteDisposisi('${r.Disposisi_ID}')"><i class="fa-solid fa-trash me-1"></i>Hapus</button>
+      </div>
+    </div>`).join('') || '<p class="text-muted">Belum ada disposisi tindak lanjut.</p>';
+}
+
+async function deleteDisposisi(disposisiId) {
+  const result = await Swal.fire({
+    title: 'Hapus Disposisi?',
+    text: `Disposisi ${disposisiId} akan dihapus secara permanen.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Ya, Hapus!',
+    cancelButtonText: 'Batal'
+  });
+  if (result.isConfirmed) {
+    try {
+      await callServer('apiDeleteDisposisi', AppState.token, disposisiId);
+      Swal.fire({ icon: 'success', title: 'Disposisi Dihapus', timer: 1200, showConfirmButton: false });
+      refreshDisposisiList();
+      refreshDisposisiBadge();
+    } catch (e) {}
+  }
+}
+
+function openDisposisiModal(logId, parameter, pondId) {
+  document.getElementById('disp-log-id').value = logId;
+  document.getElementById('disp-parameter').value = parameter;
+  document.getElementById('disp-log-id').setAttribute('data-pond', pondId);
+  document.getElementById('modal-disposisi').classList.add('active');
+}
+document.getElementById('close-modal-disposisi').addEventListener('click', () => document.getElementById('modal-disposisi').classList.remove('active'));
+document.getElementById('cancel-modal-disposisi').addEventListener('click', () => document.getElementById('modal-disposisi').classList.remove('active'));
+document.getElementById('save-modal-disposisi').addEventListener('click', async () => {
+  await callServer('apiCreateDisposisiInvestigasi', AppState.token, {
+    Log_ID_Ref: document.getElementById('disp-log-id').value,
+    Pond_ID: document.getElementById('disp-log-id').getAttribute('data-pond'),
+    Parameter_Melanggar: document.getElementById('disp-parameter').value,
+    Instruksi_Tindak_Lanjut: document.getElementById('disp-instruksi').value,
+    PIC_Tindak_Lanjut: document.getElementById('disp-pic').value,
+    Temuan_Investigasi: document.getElementById('disp-temuan').value,
+    Target_Selesai: document.getElementById('disp-target').value
+  });
+  document.getElementById('modal-disposisi').classList.remove('active');
+  Swal.fire({ icon: 'success', title: 'Disposisi Tersimpan', timer: 1500, showConfirmButton: false });
+  refreshDisposisiList(); refreshDisposisiBadge();
+});
+
+async function updateInvestigasi(id, status) {
+  const { value: temuan } = await Swal.fire({ title: 'Perbarui Temuan Investigasi', input: 'textarea', inputPlaceholder: 'Tuliskan temuan akar masalah…', showCancelButton: true });
+  await callServer('apiUpdateInvestigasiStatus', AppState.token, id, temuan || '', status);
+  refreshDisposisiList();
+}
+async function verifyDisposisiRole(id, role) {
+  await callServer('apiVerifyDisposisi', AppState.token, id, role);
+  Swal.fire({ icon: 'success', title: role === 'MANAJEMEN' ? 'Insiden Ditutup (KTT)' : 'Terverifikasi SPV', timer: 1500, showConfirmButton: false });
+  refreshDisposisiList(); refreshDashboard(true); refreshDisposisiBadge();
+}
+
+// ============================================================
+// 9. LABORATORIUM
+// ============================================================
+let labPdfBase64Cache = null;
+document.getElementById('lab-pdf').addEventListener('change', async function (e) {
+  const file = e.target.files[0]; if (!file) return;
+  if (file.size > 8 * 1024 * 1024) { Swal.fire('Ukuran Terlalu Besar', 'Maksimal 8MB.', 'warning'); e.target.value = ''; return; }
+  labPdfBase64Cache = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result); r.readAsDataURL(file); });
+});
+
+document.getElementById('form-lab').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  await callServer('apiSaveLabLog', AppState.token, {
+    Bulan_Periode: document.getElementById('lab-periode').value,
+    Pond_ID: document.getElementById('lab-pond').value,
+    Titik_Aliran: document.getElementById('lab-aliran').value,
+    Nama_Laboratorium: document.getElementById('lab-nama').value,
+    Nomor_Sertifikat: document.getElementById('lab-sertifikat').value,
+    Tanggal_Analisis: document.getElementById('lab-tanggal').value,
+    Lab_pH: document.getElementById('lab-ph').value,
+    Lab_TSS: document.getElementById('lab-tss').value,
+    Lab_Fe: document.getElementById('lab-fe').value,
+    Lab_Mn: document.getElementById('lab-mn').value,
+    pdfBase64: labPdfBase64Cache
+  });
+  Swal.fire({ icon: 'success', title: 'Hasil Lab Tersimpan', timer: 1500, showConfirmButton: false });
+  document.getElementById('form-lab').reset(); labPdfBase64Cache = null; refreshLabTable();
+});
+
+async function refreshLabTable() {
+  const rows = await callServer('apiGetLabLogs', AppState.token, {});
+  if (!rows || !rows.length) {
+    document.getElementById('lab-table-body').innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:2rem;">Belum ada data hasil lab.</td></tr>';
+    return;
+  }
+  document.getElementById('lab-table-body').innerHTML = rows.map(r => `
+    <tr>
+      <td class="mono">${formatDisplayMonth(r.Bulan_Periode)}</td>
+      <td>${r.Pond_ID}</td>
+      <td>${r.Nama_Laboratorium}</td>
+      <td class="mono">${r.Nomor_Sertifikat}</td>
+      <td class="numeric">${Number(r.Lab_pH).toFixed(2)}</td>
+      <td class="numeric">${Number(r.Lab_TSS).toFixed(1)}</td>
+      <td>${r.File_PDF_URL ? `<a href="${r.File_PDF_URL}" target="_blank"><i class="fa-solid fa-file-pdf" style="color:var(--violation-text);"></i></a>` : '-'}</td>
+      <td>
+        <button class="btn btn-sm btn-outline text-danger" style="border-color:#FCA5A5;color:#DC2626;" onclick="deleteLabRecord('${r.Lab_ID}')" title="Hapus Hasil Lab"><i class="fa-solid fa-trash"></i></button>
+      </td>
+    </tr>`).join('');
+}
+
+async function deleteLabRecord(labId) {
+  const result = await Swal.fire({
+    title: 'Hapus Hasil Uji Lab?',
+    text: `Data hasil lab ${labId} akan dihapus secara permanen.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#DC2626',
+    cancelButtonColor: '#64748B',
+    confirmButtonText: '<i class="fa-solid fa-trash me-1"></i> Ya, Hapus',
+    cancelButtonText: 'Batal'
+  });
+  if (!result.isConfirmed) return;
+  try {
+    await callServer('apiDeleteLabLog', AppState.token, labId);
+    Swal.fire({ icon: 'success', title: 'Data Lab Berhasil Dihapus', timer: 1500, showConfirmButton: false });
+    refreshLabTable();
+  } catch (err) {
+    Swal.fire('Gagal Menghapus', err.message || 'Terjadi kesalahan.', 'error');
+  }
+}
+
+// ============================================================
+// 10. PELAPORAN
+// ============================================================
+async function refreshReportTable() {
+  const rows = await callServer('apiGetFilteredLogs', AppState.token,
+    document.getElementById('rep-start').value,
+    document.getElementById('rep-end').value,
+    document.getElementById('rep-pond').value,
+    document.getElementById('rep-aliran').value
+  );
+  AppState.reportFilteredData = rows; AppState.selectedDailyLog = null;
+
+  if (!rows || !rows.length) {
+    document.getElementById('rep-table-body').innerHTML = '<tr><td colspan="9" class="text-center text-muted" style="padding:2rem;">Belum ada data pada rentang ini.</td></tr>';
+    return;
+  }
+
+  document.getElementById('rep-table-body').innerHTML = rows.map((r, idx) => `
+    <tr>
+      <td><button type="button" class="btn btn-sm btn-outline" onclick="selectDailyLogForReport(${idx})"><i class="fa-solid fa-check me-1"></i>Pilih</button></td>
+      <td class="mono" style="font-size:11px;">${r.Tanggal_Sampling}</td>
+      <td>${r.Pond_ID}</td><td>${r.Titik_Aliran}</td>
+      <td class="numeric">${Number(r.Nilai_pH).toFixed(2)}</td>
+      <td class="numeric">${Number(r.Nilai_TSS).toFixed(1)}</td>
+      <td class="numeric">${Number(r.Nilai_Fe).toFixed(2)}</td>
+      <td class="numeric">${Number(r.Nilai_Mn).toFixed(2)}</td>
+      <td><span class="badge ${r.Status_Mutu === 'NORMAL' ? 'badge-compliant' : 'badge-violation'}">${r.Status_Mutu}</span></td>
+    </tr>`).join('');
+  updateHarianSelectionPanel();
+}
+
+async function refreshLaporanList() {
+  const filters = AppState.session.role === 'OPERATOR' ? { mine: true } : {};
+  try {
+    const rows = await callServer('apiGetLaporanList', AppState.token, filters);
+    const tbody = document.getElementById('laporan-list-body');
+    if (!tbody) return;
+    if (!rows || !rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:1.5rem;">Belum ada laporan dikirim.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(r => {
+      const statusBadge = {
+        'MENUNGGU_REVIEW_SPV': '<span class="badge badge-warning">Menunggu SPV</span>',
+        'MENUNGGU_APPROVE_KTT': '<span class="badge badge-warning" style="background:#dbeafe;color:#1d4ed8;">Menunggu KTT</span>',
+        'FINAL_APPROVED': '<span class="badge badge-compliant">✅ Final</span>',
+        'DIKEMBALIKAN': '<span class="badge badge-violation">Dikembalikan</span>'
+      }[r.Status_Laporan] || `<span class="badge badge-info">${r.Status_Laporan || '-'}</span>`;
+
+      const reviewBtn = AppState.session.role === 'SUPERVISOR' && r.Status_Laporan === 'MENUNGGU_REVIEW_SPV'
+        ? `<button class="btn btn-sm btn-primary" onclick="openReviewModal('${r.Report_ID}')"><i class="fa-solid fa-pen-to-square me-1"></i>Review</button>` : '';
+      const approveBtn = AppState.session.role === 'MANAJEMEN' && r.Status_Laporan === 'MENUNGGU_APPROVE_KTT'
+        ? `<button class="btn btn-sm btn-primary" onclick="openApproveKTTModal('${r.Report_ID}')"><i class="fa-solid fa-file-signature me-1"></i>Setujui</button>` : '';
+      const printBtn = r.Status_Laporan === 'FINAL_APPROVED'
+        ? `<button class="btn btn-sm btn-outline" onclick="printFinalReport('${r.Report_ID}')"><i class="fa-solid fa-print me-1"></i>Cetak</button>` : '';
+      const deleteBtn = `<button class="btn btn-sm btn-danger ms-1" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteLaporan('${r.Report_ID}')"><i class="fa-solid fa-trash me-1"></i>Hapus</button>`;
+
+      return `<tr>
+        <td class="mono" style="font-size:10px;">${r.Report_ID}</td>
+        <td style="font-size:11px;">${r.Tipe_Laporan}</td>
+        <td class="mono" style="font-size:10px;">${r.Nomor_Sampel || '-'}</td>
+        <td>${statusBadge}</td>
+        <td>${r.Reviewed_By_SPV || '-'}</td>
+        <td style="white-space:nowrap;">${reviewBtn} ${approveBtn} ${printBtn} ${deleteBtn}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {}
+}
+
+async function deleteLaporan(reportId) {
+  const result = await Swal.fire({
+    title: 'Hapus Laporan Resmi?',
+    text: `Laporan ${reportId} akan dihapus secara permanen.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Ya, Hapus!',
+    cancelButtonText: 'Batal'
+  });
+  if (result.isConfirmed) {
+    try {
+      await callServer('apiDeleteLaporan', AppState.token, reportId);
+      Swal.fire({ icon: 'success', title: 'Laporan Dihapus', timer: 1200, showConfirmButton: false });
+      refreshLaporanList();
+    } catch (e) {}
+  }
+}
+
+document.getElementById('btn-rep-filter').addEventListener('click', refreshReportTable);
+
+// ── Open Modal Pelaporan ──
+document.getElementById('btn-open-report-modal').addEventListener('click', () => {
+  const modal = document.getElementById('modalReportConfig');
+  modal.classList.add('active');
+
+  // Update button label & modal subtitle based on user role
+  const role = AppState.session.role;
+  const sendLabel = document.getElementById('btn-send-label');
+  const subTitle = document.getElementById('modal-report-subtitle');
+
+  if (role === 'SUPERVISOR') {
+    if (sendLabel) sendLabel.textContent = 'Kirim ke KTT';
+    if (subTitle) subTitle.textContent = 'Konfigurasi, generate nomor sampel, kirim ke KTT untuk persetujuan & tanda tangan final';
+  } else if (role === 'MANAJEMEN') {
+    if (sendLabel) sendLabel.textContent = 'Simpan Draft';
+    if (subTitle) subTitle.textContent = 'Konfigurasi, generate nomor sampel, simpan draf laporan resmi';
+  } else if (role === 'ADMIN') {
+    if (sendLabel) sendLabel.textContent = 'Kirim ke KTT';
+    if (subTitle) subTitle.textContent = 'Konfigurasi, generate nomor sampel, kelola dan proses laporan resmi';
+  } else {
+    // OPERATOR
+    if (sendLabel) sendLabel.textContent = 'Kirim ke Supervisor';
+    if (subTitle) subTitle.textContent = 'Konfigurasi, generate nomor sampel, kirim ke Supervisor untuk review & tanda tangan';
+  }
+
+  // Set default dates if empty
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const harianDateInput = document.getElementById('rep-harian-tanggal');
+  if (harianDateInput && !harianDateInput.value) harianDateInput.value = todayStr;
+
+  const startModalInput = document.getElementById('rep-start-modal');
+  if (startModalInput && !startModalInput.value) {
+    startModalInput.value = document.getElementById('rep-start').value || todayStr;
+  }
+  const endModalInput = document.getElementById('rep-end-modal');
+  if (endModalInput && !endModalInput.value) {
+    endModalInput.value = document.getElementById('rep-end').value || todayStr;
+  }
+
+  populateReportAreaDropdown();
+  toggleReportModeUI();
+});
+
+document.getElementById('close-modal-report').addEventListener('click', () => {
+  document.getElementById('modalReportConfig').classList.remove('active');
+});
+
+document.getElementById('rep-jenis-dokumen').addEventListener('change', () => {
+  toggleReportModeUI();
+});
+
+function populateReportAreaDropdown() {
+  const areaSelect = document.getElementById('rep-area-kode-select');
+  if (!areaSelect) return;
+  areaSelect.innerHTML = '<option value="">— Semua / Pilih Settling Pond —</option>';
+  AppState.ponds.forEach(p => {
+    areaSelect.innerHTML += `<option value="${p.Pond_ID}" data-nama="${p.Nama_Pond}">${p.Pond_ID} — ${p.Nama_Pond}</option>`;
+  });
+  if (AppState.selectedDailyLog) {
+    areaSelect.value = AppState.selectedDailyLog.Pond_ID;
+    document.getElementById('rep-area-kode').value = AppState.selectedDailyLog.Pond_ID;
+  }
+}
+
+document.getElementById('rep-area-kode-select')?.addEventListener('change', function () {
+  document.getElementById('rep-area-kode').value = this.value;
+  updateGeneratedSampleNumber();
+  const jenis = document.getElementById('rep-jenis-dokumen').value;
+  if (jenis === 'HARIAN') {
+    fetchModalHarianData();
+  } else {
+    fetchModalBulananSummary();
+  }
+});
+
+// Listener tanggal harian & periode bulanan
+document.getElementById('rep-harian-tanggal')?.addEventListener('change', () => {
+  updateGeneratedSampleNumber();
+  fetchModalHarianData();
+});
+document.getElementById('rep-start-modal')?.addEventListener('change', () => {
+  fetchModalBulananSummary();
+});
+document.getElementById('rep-end-modal')?.addEventListener('change', () => {
+  fetchModalBulananSummary();
+});
+
+function updateGeneratedSampleNumber() {
+  let pondName = 'UMUM', aliran = document.getElementById('rep-aliran')?.value || 'OUTLET';
+  const pondKode = document.getElementById('rep-area-kode').value || document.getElementById('rep-area-kode-select')?.value;
+  if (pondKode) {
+    const pond = AppState.ponds.find(p => p.Pond_ID === pondKode);
+    if (pond) pondName = pond.Nama_Pond.split(' ').pop();
+  }
+  const dateVal = document.getElementById('rep-harian-tanggal')?.value;
+  document.getElementById('rep-nomor-sampel').value = generateSampleNumber(pondName, aliran, dateVal);
+}
+
+function toggleReportModeUI() {
+  const jenis = document.getElementById('rep-jenis-dokumen').value;
+  const isHarian = jenis === 'HARIAN';
+
+  const dateHarianRow = document.getElementById('rep-date-harian-row');
+  const periodBulananRow = document.getElementById('rep-period-bulanan-row');
+  const tableWrap = document.getElementById('rep-modal-table-wrap');
+  const bulananSummary = document.getElementById('rep-bulanan-summary');
+
+  if (dateHarianRow) dateHarianRow.classList.toggle('hidden', !isHarian);
+  if (periodBulananRow) periodBulananRow.classList.toggle('hidden', isHarian);
+  if (tableWrap) tableWrap.classList.toggle('hidden', !isHarian);
+  if (bulananSummary) bulananSummary.classList.toggle('hidden', isHarian);
+
+  updateGeneratedSampleNumber();
+
+  if (isHarian) {
+    fetchModalHarianData();
+  } else {
+    fetchModalBulananSummary();
+  }
+}
+
+function formatJam(val) {
+  if (!val) return '-';
+  const s = String(val).trim();
+  if (s.includes('T')) {
+    const timePart = s.split('T')[1];
+    return timePart.slice(0, 5);
+  }
+  return s.slice(0, 5);
+}
+
+// ── Ambil Data Sampel Harian untuk Tabel Modal ──
+async function fetchModalHarianData() {
+  const dateInput = document.getElementById('rep-harian-tanggal');
+  const date = dateInput ? dateInput.value : '';
+  if (!date) return;
+
+  const pond = document.getElementById('rep-area-kode').value || document.getElementById('rep-area-kode-select')?.value || '';
+  const loading = document.getElementById('rep-modal-table-loading');
+  const tableWrap = document.getElementById('rep-modal-table-wrap');
+  const tbody = document.getElementById('rep-modal-table-body');
+  const countEl = document.getElementById('rep-modal-table-count');
+  const photoWrap = document.getElementById('rep-modal-photo-strip-wrap');
+  const photoStrip = document.getElementById('rep-modal-photo-strip');
+
+  if (loading) loading.classList.remove('hidden');
+
+  try {
+    const rows = await callServer('apiGetFilteredLogs', AppState.token, date, date, pond, '');
+    AppState.modalHarianRows = rows || [];
+
+    if (loading) loading.classList.add('hidden');
+    if (tableWrap) tableWrap.classList.remove('hidden');
+
+    if (!rows || !rows.length) {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-muted" style="text-align:center;padding:1.2rem;">Tidak ada data pemantauan pada tanggal ${date}${pond ? ' (' + pond + ')' : ''}.</td></tr>`;
+      if (countEl) countEl.innerHTML = 'Total: <b>0 sampel</b>';
+      if (photoWrap) photoWrap.classList.remove('hidden');
+      if (photoStrip) photoStrip.innerHTML = '<div class="photo-empty"><i class="fa-solid fa-camera me-1"></i>Tidak ada foto dokumentasi.</div>';
+    } else {
+      if (tbody) {
+        tbody.innerHTML = rows.map(r => `
+          <tr>
+            <td class="mono"><b>${formatJam(r.Jam_Sampling)}</b></td>
+            <td><b>${r.Pond_ID}</b></td>
+            <td>${r.Titik_Aliran || '-'}</td>
+            <td class="numeric">${Number(r.Nilai_pH || 0).toFixed(2)}</td>
+            <td class="numeric">${Number(r.Nilai_TSS || 0).toFixed(1)}</td>
+            <td class="numeric">${Number(r.Nilai_Fe || 0).toFixed(2)}</td>
+            <td class="numeric">${Number(r.Nilai_Mn || 0).toFixed(2)}</td>
+            <td><span class="badge ${r.Status_Mutu === 'NORMAL' ? 'badge-compliant' : 'badge-violation'}">${r.Status_Mutu}</span></td>
+          </tr>
+        `).join('');
+      }
+      const normalCount = rows.filter(r => r.Status_Mutu === 'NORMAL').length;
+      const melebihiCount = rows.length - normalCount;
+      if (countEl) {
+        countEl.innerHTML = `Total: <b>${rows.length} sampel</b> (${normalCount} Normal, <span style="color:var(--violation-text);font-weight:700;">${melebihiCount} Melebihi Baku</span>)`;
+      }
+
+      // Ambil seluruh foto dari seluruh sampel pada tanggal ini
+      let allPhotos = [];
+      rows.forEach(r => {
+        try {
+          const arr = JSON.parse(r.Foto_Urls || '[]');
+          if (Array.isArray(arr)) {
+            arr.forEach(u => {
+              if (u && typeof u === 'string' && u.trim()) {
+                allPhotos.push({ url: u, pond: r.Pond_ID, jam: r.Jam_Sampling, aliran: r.Titik_Aliran });
+              }
+            });
+          }
+        } catch (e) {}
+      });
+
+      if (photoWrap) photoWrap.classList.remove('hidden');
+      if (photoStrip) {
+        if (allPhotos.length) {
+          photoStrip.innerHTML = allPhotos.map(p => `
+            <img src="${p.url}" title="Pond: ${p.pond} (${p.aliran}) - Jam ${p.jam}" alt="Dokumentasi" onclick="window.open('${p.url}', '_blank')">
+          `).join('');
+        } else {
+          photoStrip.innerHTML = '<div class="photo-empty"><i class="fa-solid fa-camera me-1"></i>Belum ada foto dokumentasi pada data tanggal ini.</div>';
+        }
+      }
+    }
+  } catch (err) {
+    if (loading) loading.classList.add('hidden');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-danger" style="text-align:center;padding:1rem;">Gagal memuat data: ${err.message || err}</td></tr>`;
+  }
+
+  updateSignaturePreview();
+}
+
+// ── Ringkasan Bulanan pada Modal ──
+async function fetchModalBulananSummary() {
+  const start = document.getElementById('rep-start-modal')?.value || '';
+  const end = document.getElementById('rep-end-modal')?.value || '';
+  const pond = document.getElementById('rep-area-kode').value || document.getElementById('rep-area-kode-select')?.value || '';
+  const summaryEl = document.getElementById('rep-bulanan-summary-text');
+
+  if (!start && !end) {
+    if (summaryEl) summaryEl.innerHTML = 'Pilih rentang tanggal untuk melihat ringkasan data.';
+    return;
+  }
+
+  try {
+    const rows = await callServer('apiGetFilteredLogs', AppState.token, start, end, pond, '');
+    AppState.modalBulananRows = rows || [];
+    AppState.reportFilteredData = rows || [];
+
+    const normal = (rows || []).filter(r => r.Status_Mutu === 'NORMAL').length;
+    const melebihi = (rows || []).length - normal;
+    if (summaryEl) {
+      summaryEl.innerHTML = `Periode <b>${start || 'Awal'}</b> s/d <b>${end || 'Akhir'}</b>${pond ? ' (' + pond + ')' : ''}: Ditemukan <b>${(rows || []).length} sampel</b> (${normal} Normal, <b style="color:var(--violation-text);">${melebihi} Melebihi</b>).`;
+    }
+  } catch (e) {}
+
+  updateSignaturePreview();
+}
+
+function selectDailyLogForReport(idx) {
+  AppState.selectedDailyLog = AppState.reportFilteredData[idx];
+  const pondKode = AppState.selectedDailyLog.Pond_ID;
+  document.getElementById('rep-area-kode').value = pondKode;
+  const areaSelect = document.getElementById('rep-area-kode-select');
+  if (areaSelect) { areaSelect.value = pondKode; }
+  document.getElementById('rep-jenis-dokumen').value = 'HARIAN';
+
+  const tanggal = AppState.selectedDailyLog.Tanggal_Sampling;
+  if (tanggal && document.getElementById('rep-harian-tanggal')) {
+    document.getElementById('rep-harian-tanggal').value = tanggal;
+  }
+
+  document.getElementById('modalReportConfig').classList.add('active');
+  toggleReportModeUI();
+  Swal.fire({ icon: 'success', title: 'Baris Data Dipilih', text: `Tanggal: ${tanggal} · Pond: ${pondKode}`, timer: 1400, showConfirmButton: false });
+}
+
+async function getSignatureNamesForCurrentSelection() {
+  const isHarian = document.getElementById('rep-jenis-dokumen').value === 'HARIAN';
+  const rows = isHarian
+    ? ((AppState.modalHarianRows && AppState.modalHarianRows.length) ? AppState.modalHarianRows : (AppState.selectedDailyLog ? [AppState.selectedDailyLog] : []))
+    : ((AppState.modalBulananRows && AppState.modalBulananRows.length) ? AppState.modalBulananRows : (AppState.reportFilteredData || []));
+  return callServer('apiGetSignatureNames', AppState.token, rows);
+}
+
+async function updateSignaturePreview() {
+  try {
+    const sig = await getSignatureNamesForCurrentSelection();
+    const previewEl = document.getElementById('rep-signature-preview');
+    if (previewEl) {
+      previewEl.innerHTML = `1. Dibuat oleh: <b>${sig.dibuatOleh || '(Operator Lapangan)'}</b><br>2. Diperiksa oleh: <b>${sig.diperiksaOleh || '(Supervisor Lingkungan)'}</b><br>3. Disetujui oleh: <b>${sig.disetujuiOleh || '(Kepala Teknik Tambang)'}</b>`;
+    }
+  } catch (e) {}
+}
+
+function generateSampleNumber(pondName, aliran, customDate) {
+  const dateObj = customDate ? new Date(customDate) : new Date();
+  const dd = String(dateObj.getDate()).padStart(2, '0');
+  const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const yy = String(dateObj.getFullYear()).slice(-2);
+  return `${dd}${mm}${yy}/SP-${(pondName || 'UMUM').replace(/\s+/g, '').toUpperCase()}/${(aliran || 'OUTLET').toUpperCase()}`;
+}
+
+document.getElementById('btn-gen-nomor').addEventListener('click', updateGeneratedSampleNumber);
+
+// ── Submit / Kirim Laporan Sesuai Role ──
+document.getElementById('btn-send-to-spv')?.addEventListener('click', async () => {
+  const nomor = document.getElementById('rep-nomor-sampel').value.trim();
+  const sumber = document.getElementById('rep-sumber-limbah').value;
+  const areaKode = document.getElementById('rep-area-kode').value || document.getElementById('rep-area-kode-select')?.value || 'SEMUA_POND';
+  const tipe = document.getElementById('rep-jenis-dokumen').value;
+  const isHarian = tipe === 'HARIAN';
+
+  const tanggalMulai = isHarian
+    ? document.getElementById('rep-harian-tanggal').value
+    : (document.getElementById('rep-start-modal').value || document.getElementById('rep-start').value);
+  const tanggalSelesai = isHarian
+    ? document.getElementById('rep-harian-tanggal').value
+    : (document.getElementById('rep-end-modal').value || document.getElementById('rep-end').value);
+
+  if (isHarian && (!AppState.modalHarianRows || !AppState.modalHarianRows.length)) {
+    Swal.fire('Data Sampel Kosong', 'Tidak ada data pemantauan pada tanggal ini untuk dibuatkan laporan.', 'warning');
+    return;
+  }
+  if (!nomor) {
+    Swal.fire('Nomor Sampel Wajib', 'Harap isi atau klik tombol Generate Nomor Sampel.', 'warning');
+    return;
+  }
+
+  const sig = await getSignatureNamesForCurrentSelection();
+  const role = AppState.session.role;
+
+  try {
+    const res = await callServer('apiSendReportToSupervisor', AppState.token, {
+      Nomor_Sampel: nomor,
+      Sumber_Limbah: sumber,
+      Tipe_Laporan: tipe,
+      Pond_ID: areaKode,
+      Periode_Mulai: tanggalMulai,
+      Periode_Selesai: tanggalSelesai,
+      Nama_Dibuat_Oleh: sig.dibuatOleh,
+      Nama_Diperiksa_Oleh: sig.diperiksaOleh,
+      Nama_Disetujui_Oleh: sig.disetujuiOleh
+    });
+
+    document.getElementById('modalReportConfig').classList.remove('active');
+
+    // Jika pengirim adalah SUPERVISOR atau ADMIN, langsung teruskan ke KTT (Status: MENUNGGU_APPROVE_KTT)
+    if (role === 'SUPERVISOR' || role === 'ADMIN') {
+      try {
+        await callServer('apiReviewReport', AppState.token, res.Report_ID, 'Dibuat & diteruskan langsung oleh ' + roleLabel(role), 'APPROVE');
+      } catch (revErr) {}
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Laporan Diteruskan ke KTT',
+        html: `ID Laporan: <b>${res.Report_ID}</b><br>Laporan berhasil dikirim dan menunggu persetujuan Kepala Teknik Tambang (KTT).`,
+        timer: 3500,
+        showConfirmButton: false
+      });
+    } else if (role === 'MANAJEMEN') {
+      Swal.fire({
+        icon: 'success',
+        title: 'Draft Laporan Tersimpan',
+        html: `ID Laporan: <b>${res.Report_ID}</b><br>Laporan disimpan sebagai draf untuk otorisasi resmi.`,
+        timer: 3000,
+        showConfirmButton: false
+      });
+    } else {
+      // OPERATOR
+      Swal.fire({
+        icon: 'success',
+        title: 'Laporan Terkirim ke Supervisor',
+        html: `ID Laporan: <b>${res.Report_ID}</b><br>Menunggu review & tanda tangan Supervisor Lingkungan.`,
+        timer: 3500,
+        showConfirmButton: false
+      });
+    }
+
+    refreshLaporanList();
+    pollNotifikasi();
+  } catch (err) {
+    Swal.fire('Gagal Mengirim Laporan', err.message || String(err), 'error');
+  }
+});
+
+async function openReviewModal(reportId) {
+  const { value: result } = await Swal.fire({
+    title: '📋 Review Laporan',
+    html: `<p style="font-size:12px;text-align:left;color:#475569;">ID Laporan: <b>${reportId}</b></p>
+      <textarea id="swal-catatan" class="swal2-textarea" placeholder="Catatan review (opsional)..." style="height:100px;"></textarea>`,
+    showCancelButton: true,
+    confirmButtonText: '✅ Setujui & Kirim ke KTT',
+    cancelButtonText: '🔄 Kembalikan ke Operator',
+    cancelButtonColor: '#d97706',
+    preConfirm: () => ({ catatan: document.getElementById('swal-catatan').value, action: 'APPROVE' })
+  });
+
+  if (result === undefined) return;
+
+  if (result && result.action === 'APPROVE') {
+    await callServer('apiReviewReport', AppState.token, reportId, result.catatan || '', 'APPROVE');
+    Swal.fire({ icon: 'success', title: 'Laporan Diteruskan ke KTT', timer: 2000, showConfirmButton: false });
+  } else {
+    const { value: catatan } = await Swal.fire({ title: 'Alasan Pengembalian', input: 'textarea', inputPlaceholder: 'Tuliskan alasan...', showCancelButton: true });
+    if (catatan !== undefined) {
+      await callServer('apiReviewReport', AppState.token, reportId, catatan || '', 'KEMBALIKAN');
+      Swal.fire({ icon: 'info', title: 'Laporan Dikembalikan', timer: 2000, showConfirmButton: false });
+    }
+  }
+  refreshLaporanList(); pollNotifikasi();
+}
+
+async function openApproveKTTModal(reportId) {
+  const { value: catatan, isConfirmed } = await Swal.fire({
+    title: '🏆 Setujui Laporan (KTT)',
+    html: `<p style="font-size:12px;text-align:left;color:#475569;">ID Laporan: <b>${reportId}</b><br>Laporan ini akan ditandatangani dan dapat diunduh oleh Supervisor.</p>
+      <textarea id="swal-catatan-ktt" class="swal2-textarea" placeholder="Catatan persetujuan (opsional)..." style="height:80px;"></textarea>`,
+    showCancelButton: true,
+    confirmButtonText: '<i class="fa-solid fa-file-signature me-1"></i>Tanda Tangan & Setujui',
+    cancelButtonText: 'Batal',
+    preConfirm: () => document.getElementById('swal-catatan-ktt').value
+  });
+  if (!isConfirmed) return;
+  await callServer('apiApproveReportKTT', AppState.token, reportId, catatan || '');
+  Swal.fire({ icon: 'success', title: 'Laporan Disetujui & Ditandatangani', text: 'Supervisor dapat mencetak laporan final.', timer: 2500, showConfirmButton: false });
+  refreshLaporanList(); refreshDashboard(true); pollNotifikasi();
+}
+
+async function logReportGeneration(tipe, sig) {
+  const isHarian = tipe === 'HARIAN';
+  const tStart = isHarian
+    ? document.getElementById('rep-harian-tanggal').value
+    : (document.getElementById('rep-start-modal').value || document.getElementById('rep-start').value);
+  const tEnd = isHarian
+    ? document.getElementById('rep-harian-tanggal').value
+    : (document.getElementById('rep-end-modal').value || document.getElementById('rep-end').value);
+
+  return callServer('apiSendReportToSupervisor', AppState.token, {
+    Nomor_Sampel: document.getElementById('rep-nomor-sampel').value,
+    Sumber_Limbah: document.getElementById('rep-sumber-limbah').value,
+    Tipe_Laporan: tipe,
+    Pond_ID: document.getElementById('rep-area-kode').value || document.getElementById('rep-area-kode-select')?.value || 'SEMUA_POND',
+    Periode_Mulai: tStart,
+    Periode_Selesai: tEnd,
+    Nama_Dibuat_Oleh: sig.dibuatOleh,
+    Nama_Diperiksa_Oleh: sig.diperiksaOleh,
+    Nama_Disetujui_Oleh: sig.disetujuiOleh
+  });
+}
+
+document.getElementById('btn-export-xls').addEventListener('click', async () => {
+  const isHarian = document.getElementById('rep-jenis-dokumen').value === 'HARIAN';
+  const rows = isHarian ? (AppState.modalHarianRows || []) : (AppState.modalBulananRows || AppState.reportFilteredData || []);
+  const sig = await getSignatureNamesForCurrentSelection();
+  await logReportGeneration(document.getElementById('rep-jenis-dokumen').value, sig);
+  const ws = XLSX.utils.json_to_sheet(rows.map(r => ({ Tanggal: r.Tanggal_Sampling, Jam: r.Jam_Sampling, Pond: r.Pond_ID, Aliran: r.Titik_Aliran, pH: r.Nilai_pH, TSS: r.Nilai_TSS, Fe: r.Nilai_Fe, Mn: r.Nilai_Mn, Status: r.Status_Mutu })));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
+  XLSX.writeFile(wb, `Laporan_${(document.getElementById('rep-nomor-sampel').value || 'Air_Limbah').replace(/\//g, '_')}.xlsx`);
+});
+
+document.getElementById('btn-export-csv').addEventListener('click', async () => {
+  const isHarian = document.getElementById('rep-jenis-dokumen').value === 'HARIAN';
+  const rows = isHarian ? (AppState.modalHarianRows || []) : (AppState.modalBulananRows || AppState.reportFilteredData || []);
+  const sig = await getSignatureNamesForCurrentSelection();
+  await logReportGeneration(document.getElementById('rep-jenis-dokumen').value, sig);
+  const ws = XLSX.utils.json_to_sheet(rows.map(r => ({ Tanggal: r.Tanggal_Sampling, Jam: r.Jam_Sampling, Pond: r.Pond_ID, Aliran: r.Titik_Aliran, pH: r.Nilai_pH, TSS: r.Nilai_TSS, Fe: r.Nilai_Fe, Mn: r.Nilai_Mn, Status: r.Status_Mutu })));
+  const blob = new Blob([XLSX.utils.sheet_to_csv(ws)], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+  link.download = `Laporan_${(document.getElementById('rep-nomor-sampel').value || 'Air_Tambang').replace(/\//g, '_')}.csv`; link.click();
+});
+
+// ============================================================
+// 11. PRINT / LAPORAN CETAK
+// ============================================================
+function buildLetterheadHtml() {
+  const cfg = AppState.config;
+  return `<div class="print-letterhead">
+    ${cfg.LOGO_URL ? `<img src="${cfg.LOGO_URL}">` : ''}
+    <div class="company-block">
+      <h2>${cfg.COMPANY_NAME || 'PT. ETAM MANUNGGAL JAYA'}</h2>
+      <p>${cfg.COMPANY_ADDRESS || 'Jl. S. Parman No. 6 Kota Samarinda'}</p>
+    </div>
+  </div>`;
+}
+
+function sigSlotHtml_(role, jabatan, nama, imgDataUrl) {
+  const imgHtml = imgDataUrl ? `<img class="sig-img" src="${imgDataUrl}">` : '<div class="sig-img-empty">(belum ada tanda tangan digital)</div>';
+  return `<div class="sig-block"><div class="sig-role">${role}<br><span style="font-weight:400;">(${jabatan})</span></div>
+    ${imgHtml}<div class="sig-line"><div class="sig-name">${nama || '(....................)'}</div></div></div>`;
+}
+
+function buildSignatureHtml(sig) {
+  return `<div class="print-signature-row">
+    ${sigSlotHtml_('DIBUAT OLEH', 'Operator Lapangan', sig.dibuatOleh, sig.dibuatOlehImg)}
+    ${sigSlotHtml_('DIPERIKSA OLEH', 'Supervisor Lingkungan', sig.diperiksaOleh, sig.diperiksaOlehImg)}
+    ${sigSlotHtml_('DISETUJUI OLEH', 'Kepala Teknik Tambang', sig.disetujuiOleh, sig.disetujuiOlehImg)}
+  </div>
+  <div class="print-footer-note">Dokumen resmi dihasilkan oleh ${AppState.config.APP_NAME || 'EnviroMine'} pada ${new Date().toLocaleString('id-ID')}.</div>`;
+}
+
+// ── FORMAT LAPORAN HARIAN (Seperti Bulanan: Tabel Sampel + Foto Dokumentasi di Bawah) ──
+function buildHarianPrintHtml(sig) {
+  const rows = (AppState.modalHarianRows && AppState.modalHarianRows.length)
+    ? AppState.modalHarianRows
+    : (AppState.selectedDailyLog ? [AppState.selectedDailyLog] : []);
+
+  const tanggal = document.getElementById('rep-harian-tanggal')?.value || (rows[0] ? rows[0].Tanggal_Sampling : '-');
+  const nomor = document.getElementById('rep-nomor-sampel').value || '-';
+  const sumber = document.getElementById('rep-sumber-limbah').value;
+  const pondFilter = document.getElementById('rep-area-kode').value || document.getElementById('rep-area-kode-select')?.value;
+
+  if (!rows.length) {
+    return `<p style="text-align:center;color:#DC2626;padding:40px;">Belum ada baris data sampel pada tanggal ${tanggal}. Silakan pilih tanggal yang memiliki data pemantauan.</p>`;
+  }
+
+  const normal = rows.filter(r => r.Status_Mutu === 'NORMAL').length;
+  const melebihi = rows.length - normal;
+  const compliance = rows.length ? ((normal / rows.length) * 100).toFixed(1) : '100';
+
+  // Baris data sampel pengukuran pada tanggal tersebut
+  const dataRows = rows.map(r => `
+    <tr>
+      <td>${r.Tanggal_Sampling}</td>
+      <td class="mono"><b>${formatJam(r.Jam_Sampling)}</b></td>
+      <td><b>${r.Pond_ID}</b></td>
+      <td>${r.Titik_Aliran || '-'}</td>
+      <td class="numeric"><b>${Number(r.Nilai_pH || 0).toFixed(2)}</b></td>
+      <td class="numeric">${Number(r.Nilai_TSS || 0).toFixed(1)}</td>
+      <td class="numeric">${Number(r.Nilai_Fe || 0).toFixed(2)}</td>
+      <td class="numeric">${Number(r.Nilai_Mn || 0).toFixed(2)}</td>
+      <td style="color:${r.Status_Mutu === 'NORMAL' ? '#15803d' : '#dc2626'};font-weight:700;">${r.Status_Mutu}</td>
+    </tr>
+  `).join('');
+
+  // Kumpulkan foto dokumentasi dari seluruh sampel
+  let allPhotos = [];
+  rows.forEach(r => {
+    try {
+      const arr = JSON.parse(r.Foto_Urls || '[]');
+      if (Array.isArray(arr)) {
+        arr.forEach(u => {
+          if (u && typeof u === 'string' && u.trim()) {
+            allPhotos.push({ url: u, caption: `${r.Pond_ID} ${r.Titik_Aliran} (${r.Jam_Sampling})` });
+          }
+        });
+      }
+    } catch (e) {}
+  });
+
+  const photosHtml = allPhotos.length ? `
+    <div class="print-section-title" style="margin-top:20px;">DOKUMENTASI FOTO LAPANGAN</div>
+    <div class="print-photos-grid">
+      ${allPhotos.map(p => `
+        <div style="text-align:center;">
+          <img src="${p.url}" alt="Dokumentasi" style="width:100%;height:100px;object-fit:cover;border:1px solid #E5E7EB;border-radius:4px;">
+          <div style="font-size:9px;color:#6B7280;margin-top:2px;">${p.caption}</div>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  return `${buildLetterheadHtml()}
+    <div class="print-doctitle">
+      <h3>Laporan Harian Pemantauan Kualitas Air Limbah</h3>
+      <div class="doc-sub">${AppState.config.REGION_NAME || 'Site Batuah - Kalimantan Timur'}</div>
+    </div>
+    <div class="print-meta-grid">
+      <div class="meta-item"><b>Nomor Sampel</b>: ${nomor}</div>
+      <div class="meta-item"><b>Area (Pond)</b>: ${pondFilter || 'Semua Pond'}</div>
+      <div class="meta-item"><b>Tanggal Sampling</b>: ${tanggal}</div>
+      <div class="meta-item"><b>Sumber Air Limbah</b>: ${sumber}</div>
+      <div class="meta-item"><b>Total Sampel</b>: ${rows.length}</div>
+      <div class="meta-item"><b>Compliance Rate</b>: <b style="color:${Number(compliance) >= 80 ? '#15803d' : '#dc2626'}">${compliance}%</b></div>
+      <div class="meta-item"><b>Status Normal</b>: ${normal}</div>
+      <div class="meta-item"><b>Melebihi Baku</b>: <b style="color:#dc2626">${melebihi}</b></div>
+    </div>
+    <div class="print-section-title">Rekapitulasi Data Sampling</div>
+    <table class="print-table">
+      <thead>
+        <tr>
+          <th>Tanggal</th><th>Jam</th><th>Pond</th><th>Aliran</th>
+          <th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>${dataRows}</tbody>
+    </table>
+    ${photosHtml}
+    ${buildSignatureHtml(sig)}`;
+}
+
+function buildBulananPrintHtml(sig) {
+  const rows = (AppState.modalBulananRows && AppState.modalBulananRows.length)
+    ? AppState.modalBulananRows
+    : (AppState.reportFilteredData || []);
+
+  const nomor = document.getElementById('rep-nomor-sampel').value;
+  const sumber = document.getElementById('rep-sumber-limbah').value;
+  const periodeStart = document.getElementById('rep-start-modal')?.value || document.getElementById('rep-start')?.value;
+  const periodeEnd = document.getElementById('rep-end-modal')?.value || document.getElementById('rep-end')?.value;
+  const pondFilter = document.getElementById('rep-area-kode')?.value || document.getElementById('rep-area-kode-select')?.value || document.getElementById('rep-pond')?.value;
+
+  const normal = rows.filter(r => r.Status_Mutu === 'NORMAL').length;
+  const melebihi = rows.length - normal;
+  const compliance = rows.length ? ((normal / rows.length) * 100).toFixed(1) : '100';
+
+  const dataRows = rows.map(r => `
+    <tr>
+      <td>${r.Tanggal_Sampling}</td><td>${r.Pond_ID}</td><td>${r.Titik_Aliran}</td>
+      <td><b>${Number(r.Nilai_pH).toFixed(2)}</b></td><td>${Number(r.Nilai_TSS).toFixed(1)}</td>
+      <td>${Number(r.Nilai_Fe).toFixed(2)}</td><td>${Number(r.Nilai_Mn).toFixed(2)}</td>
+      <td style="color:${r.Status_Mutu === 'NORMAL' ? '#15803d' : '#dc2626'};font-weight:700;">${r.Status_Mutu}</td>
+    </tr>`).join('');
+
+  return `${buildLetterheadHtml()}
+    <div class="print-doctitle">
+      <h3>Laporan Bulanan Rekapitulasi Pemantauan Air Limbah</h3>
+      <div class="doc-sub">${AppState.config.REGION_NAME || 'Site Batuah - Kalimantan Timur'}</div>
+    </div>
+    <div class="print-meta-grid">
+      <div class="meta-item"><b>Nomor Sampel</b>: ${nomor || '-'}</div>
+      <div class="meta-item"><b>Area (Pond)</b>: ${pondFilter || 'Semua Pond'}</div>
+      <div class="meta-item"><b>Periode</b>: ${periodeStart || '-'} s/d ${periodeEnd || '-'}</div>
+      <div class="meta-item"><b>Sumber Air Limbah</b>: ${sumber}</div>
+      <div class="meta-item"><b>Total Sampel</b>: ${rows.length}</div>
+      <div class="meta-item"><b>Compliance Rate</b>: <b style="color:${Number(compliance) >= 80 ? '#15803d' : '#dc2626'}">${compliance}%</b></div>
+      <div class="meta-item"><b>Status Normal</b>: ${normal}</div>
+      <div class="meta-item"><b>Melebihi Baku</b>: <b style="color:#dc2626">${melebihi}</b></div>
+    </div>
+    <div class="print-section-title">Rekapitulasi Data Sampling</div>
+    <table class="print-table">
+      <thead><tr><th>Tanggal</th><th>Pond</th><th>Aliran</th><th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th><th>Status</th></tr></thead>
+      <tbody>${dataRows}</tbody>
+    </table>
+    ${buildSignatureHtml(sig)}`;
+}
+
+function buildBulananPrintHtml(sig) {
+  const rows = AppState.reportFilteredData;
+  const nomor = document.getElementById('rep-nomor-sampel').value;
+  const sumber = document.getElementById('rep-sumber-limbah').value;
+  const periodeStart = document.getElementById('rep-start').value;
+  const periodeEnd = document.getElementById('rep-end').value;
+  const pondFilter = document.getElementById('rep-pond').value;
+
+  const normal = rows.filter(r => r.Status_Mutu === 'NORMAL').length;
+  const melebihi = rows.length - normal;
+  const compliance = rows.length ? (normal / rows.length * 100).toFixed(1) : '100';
+
+  const dataRows = rows.map(r => `
+    <tr>
+      <td>${r.Tanggal_Sampling}</td><td>${r.Pond_ID}</td><td>${r.Titik_Aliran}</td>
+      <td><b>${Number(r.Nilai_pH).toFixed(2)}</b></td><td>${Number(r.Nilai_TSS).toFixed(1)}</td>
+      <td>${Number(r.Nilai_Fe).toFixed(2)}</td><td>${Number(r.Nilai_Mn).toFixed(2)}</td>
+      <td style="color:${r.Status_Mutu === 'NORMAL' ? '#15803d' : '#dc2626'};font-weight:700;">${r.Status_Mutu}</td>
+    </tr>`).join('');
+
+  return `${buildLetterheadHtml()}
+    <div class="print-doctitle"><h3>Laporan Bulanan Rekapitulasi Pemantauan Air Limbah</h3><div class="doc-sub">${AppState.config.REGION_NAME || ''}</div></div>
+    <div class="print-meta-grid">
+      <div class="meta-item"><b>Nomor Sampel</b>: ${nomor || '-'}</div>
+      <div class="meta-item"><b>Area (Pond)</b>: ${pondFilter || 'Semua Pond'}</div>
+      <div class="meta-item"><b>Periode</b>: ${periodeStart || '-'} s/d ${periodeEnd || '-'}</div>
+      <div class="meta-item"><b>Sumber Air Limbah</b>: ${sumber}</div>
+      <div class="meta-item"><b>Total Sampel</b>: ${rows.length}</div>
+      <div class="meta-item"><b>Compliance Rate</b>: <b style="color:${Number(compliance) >= 80 ? '#15803d' : '#dc2626'}">${compliance}%</b></div>
+      <div class="meta-item"><b>Status Normal</b>: ${normal}</div>
+      <div class="meta-item"><b>Melebihi Baku</b>: <b style="color:#dc2626">${melebihi}</b></div>
+    </div>
+    <div class="print-section-title">Rekapitulasi Data Sampling</div>
+    <table class="print-table"><thead><tr><th>Tanggal</th><th>Pond</th><th>Aliran</th><th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th><th>Status</th></tr></thead>
+    <tbody>${dataRows}</tbody></table>
+    ${buildSignatureHtml(sig)}`;
+}
+
+document.getElementById('btn-preview-print').addEventListener('click', async () => {
+  const sig = await getSignatureNamesForCurrentSelection();
+  const isHarian = document.getElementById('rep-jenis-dokumen').value === 'HARIAN';
+  const html = isHarian ? buildHarianPrintHtml(sig) : buildBulananPrintHtml(sig);
+  document.getElementById('print-doc-root').innerHTML = html;
+  window.print();
+});
+
+async function printFinalReport(reportId) {
+  Swal.fire({ icon: 'info', title: 'Mencetak Laporan Final', text: 'Memuat data laporan...', timer: 1500, showConfirmButton: false });
+  setTimeout(() => window.print(), 1600);
+}
+
+document.getElementById('btn-export-pdf').addEventListener('click', async () => {
+  const sig = await getSignatureNamesForCurrentSelection();
+  const isHarian = document.getElementById('rep-jenis-dokumen').value === 'HARIAN';
+  const html = isHarian ? buildHarianPrintHtml(sig) : buildBulananPrintHtml(sig);
+  document.getElementById('print-doc-root').innerHTML = html;
+  await logReportGeneration(document.getElementById('rep-jenis-dokumen').value, sig);
+  window.print();
+});
+
+// ============================================================
+// 12. TOMBOL REFRESH MANUAL
+// ============================================================
+document.getElementById('btn-refresh-dashboard')?.addEventListener('click', () => { refreshDashboard(true); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Dashboard diperbarui', showConfirmButton: false, timer: 1200 }); });
+document.getElementById('btn-refresh-ledger')?.addEventListener('click', () => { refreshLogTable(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ledger diperbarui', showConfirmButton: false, timer: 1200 }); });
+document.getElementById('btn-refresh-disposisi')?.addEventListener('click', () => { refreshDisposisiList(); refreshDisposisiBadge(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Disposisi diperbarui', showConfirmButton: false, timer: 1200 }); });
+document.getElementById('btn-refresh-lab')?.addEventListener('click', () => { refreshLabTable(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Lab diperbarui', showConfirmButton: false, timer: 1200 }); });
+document.getElementById('btn-refresh-report')?.addEventListener('click', () => { refreshReportTable(); refreshLaporanList(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Laporan diperbarui', showConfirmButton: false, timer: 1200 }); });
+document.getElementById('btn-refresh-master')?.addEventListener('click', async () => {
+  const data = await callServer('apiGetInitialAppData', AppState.token);
+  AppState.ponds = data.ponds; AppState.bakuMutu = data.bakuMutu;
+  populatePondDropdowns(); refreshMasterData();
+  Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Master data diperbarui', showConfirmButton: false, timer: 1200 });
+});
+document.getElementById('btn-refresh-users')?.addEventListener('click', () => { refreshUserTable(); Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Pengguna diperbarui', showConfirmButton: false, timer: 1200 }); });
+
+// ============================================================
+// 13. TANDA TANGAN ONLINE
+// ============================================================
+let sigCanvasCtx = null, sigDrawing = false, sigHasStroke = false;
+function initSignatureCanvas() {
+  const canvas = document.getElementById('sig-canvas');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width; canvas.height = rect.height;
+  sigCanvasCtx = canvas.getContext('2d');
+  sigCanvasCtx.lineWidth = 2.4; sigCanvasCtx.lineCap = 'round'; sigCanvasCtx.strokeStyle = '#0F172A';
+  sigHasStroke = false;
+  function posFromEvent(e) {
+    const r = canvas.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - r.left, y: p.clientY - r.top };
+  }
+  function start(e) { e.preventDefault(); sigDrawing = true; const p = posFromEvent(e); sigCanvasCtx.beginPath(); sigCanvasCtx.moveTo(p.x, p.y); }
+  function move(e) { if (!sigDrawing) return; e.preventDefault(); const p = posFromEvent(e); sigCanvasCtx.lineTo(p.x, p.y); sigCanvasCtx.stroke(); sigHasStroke = true; }
+  function end() { sigDrawing = false; }
+  canvas.onmousedown = start; canvas.onmousemove = move; window.addEventListener('mouseup', end);
+  canvas.ontouchstart = start; canvas.ontouchmove = move; canvas.ontouchend = end;
+}
+function clearSignatureCanvas() {
+  if (!sigCanvasCtx) return;
+  sigCanvasCtx.clearRect(0, 0, document.getElementById('sig-canvas').width, document.getElementById('sig-canvas').height);
+  sigHasStroke = false;
+}
+document.getElementById('btn-open-signature').addEventListener('click', async (e) => {
+  e.preventDefault();
+  document.getElementById('modal-signature').classList.add('active');
+  setTimeout(async () => {
+    initSignatureCanvas();
+    try {
+      const res = await callServer('apiGetMySignature', AppState.token);
+      const label = document.getElementById('sig-status-label');
+      if (res.hasSignature && res.Signature_DataURL) {
+        label.textContent = 'Tanda tangan tersimpan — gambar ulang lalu Simpan untuk mengganti.';
+        const img = new Image();
+        img.onload = () => sigCanvasCtx.drawImage(img, 0, 0, document.getElementById('sig-canvas').width, document.getElementById('sig-canvas').height);
+        img.src = res.Signature_DataURL;
+      } else { label.textContent = 'Belum ada tanda tangan tersimpan.'; }
+    } catch (e) {}
+  }, 60);
+});
+document.getElementById('cancel-modal-signature').addEventListener('click', () => document.getElementById('modal-signature').classList.remove('active'));
+document.getElementById('btn-sig-clear').addEventListener('click', clearSignatureCanvas);
+document.getElementById('save-modal-signature').addEventListener('click', async () => {
+  if (!sigHasStroke) { Swal.fire('Kanvas Kosong', 'Gambar tanda tangan Anda terlebih dahulu.', 'warning'); return; }
+  const dataUrl = document.getElementById('sig-canvas').toDataURL('image/png');
+  await callServer('apiSaveMySignature', AppState.token, dataUrl);
+  document.getElementById('modal-signature').classList.remove('active');
+  Swal.fire({ icon: 'success', title: 'Tanda Tangan Tersimpan', timer: 2000, showConfirmButton: false });
+});
+
+// ============================================================
+// 14. MASTER DATA
+// ============================================================
+async function refreshMasterData() {
+  document.getElementById('master-pond-body').innerHTML = AppState.ponds.map(p => `
+    <tr><td class="mono">${p.Pond_ID}</td><td>${p.Nama_Pond}</td><td>${p.Blok_Area}</td>
+    <td class="numeric">${p.Latitude ?? '-'}</td><td class="numeric">${p.Longitude ?? '-'}</td>
+    <td><span class="badge ${p.Status === 'AKTIF' ? 'badge-compliant' : 'badge-info'}">${p.Status}</span></td>
+    <td style="white-space:nowrap;">
+      <button class="btn btn-sm btn-outline" title="Edit" onclick="openPondModal('${p.Pond_ID}')"><i class="fa-solid fa-pen"></i></button>
+      <button class="btn btn-sm btn-danger ms-1" title="Hapus" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;" onclick="deleteMasterPond('${p.Pond_ID}')"><i class="fa-solid fa-trash"></i></button>
+    </td></tr>`).join('');
+  document.getElementById('master-bakumutu-body').innerHTML = AppState.bakuMutu.map(b => `
+    <tr><td class="mono">${b.Param_Code}</td><td>${b.Nama_Parameter}</td>
+    <td class="numeric">${b.Batas_Min}</td><td class="numeric">${b.Batas_Max}</td>
+    <td><button class="btn btn-sm btn-outline" onclick="editBakuMutu('${b.Param_Code}')">Edit</button></td></tr>`).join('');
+}
+
+async function deleteMasterPond(pondId) {
+  const result = await Swal.fire({
+    title: 'Hapus Settling Pond?',
+    text: `Titik pond ${pondId} akan dihapus dari sistem.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: '#6b7280',
+    confirmButtonText: 'Ya, Hapus!',
+    cancelButtonText: 'Batal'
+  });
+  if (result.isConfirmed) {
+    try {
+      await callServer('apiDeleteMasterPond', AppState.token, pondId);
+      const data = await callServer('apiGetInitialAppData', AppState.token);
+      AppState.ponds = data.ponds;
+      populatePondDropdowns();
+      refreshMasterData();
+      Swal.fire({ icon: 'success', title: 'Settling Pond Dihapus', timer: 1200, showConfirmButton: false });
+    } catch (e) {}
+  }
+}
+
+async function editBakuMutu(code) {
+  const rule = AppState.bakuMutu.find(b => b.Param_Code === code);
+  const { value: formValues } = await Swal.fire({
+    title: `Edit Baku Mutu — ${rule.Nama_Parameter}`,
+    html: `<input id="swal-min" class="swal2-input" placeholder="Batas Min" value="${rule.Batas_Min}"><input id="swal-max" class="swal2-input" placeholder="Batas Max" value="${rule.Batas_Max}">`,
+    focusConfirm: false, preConfirm: () => [document.getElementById('swal-min').value, document.getElementById('swal-max').value]
+  });
+  if (!formValues) return;
+  rule.Batas_Min = formValues[0]; rule.Batas_Max = formValues[1];
+  await callServer('apiSaveBakuMutu', AppState.token, rule);
+  Swal.fire({ icon: 'success', title: 'Baku Mutu Diperbarui', timer: 1500, showConfirmButton: false }); refreshMasterData();
+}
+
+function openPondModal(pondId) {
+  const modal = document.getElementById('modal-pond');
+  if (pondId) {
+    const p = AppState.ponds.find(x => x.Pond_ID === pondId);
+    document.getElementById('pond-modal-title').textContent = 'Edit Settling Pond';
+    document.getElementById('pond-id').value = p.Pond_ID;
+    document.getElementById('pond-nama').value = p.Nama_Pond;
+    document.getElementById('pond-blok').value = p.Blok_Area;
+    document.getElementById('pond-lat').value = p.Latitude || '';
+    document.getElementById('pond-lng').value = p.Longitude || '';
+    document.getElementById('pond-kompartemen').value = p.Jumlah_Kompartemen || 1;
+    document.getElementById('pond-status').value = p.Status || 'AKTIF';
+  } else {
+    document.getElementById('pond-modal-title').textContent = 'Tambah Settling Pond';
+    document.getElementById('pond-id').value = '';
+    ['pond-nama', 'pond-blok', 'pond-lat', 'pond-lng'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('pond-kompartemen').value = 1;
+    document.getElementById('pond-status').value = 'AKTIF';
+  }
+  updatePondCoordPreview(); modal.classList.add('active');
+}
+
+function updatePondCoordPreview() {
+  const lat = document.getElementById('pond-lat').value.trim();
+  const lng = document.getElementById('pond-lng').value.trim();
+  document.getElementById('pond-coord-preview').textContent = (lat && lng) ? `${lat}, ${lng}` : 'Belum ada koordinat';
+}
+document.getElementById('pond-lat').addEventListener('input', updatePondCoordPreview);
+document.getElementById('pond-lng').addEventListener('input', updatePondCoordPreview);
+document.getElementById('btn-add-pond').addEventListener('click', () => openPondModal(null));
+document.getElementById('cancel-modal-pond').addEventListener('click', () => document.getElementById('modal-pond').classList.remove('active'));
+document.getElementById('save-modal-pond').addEventListener('click', async () => {
+  const nama = document.getElementById('pond-nama').value.trim();
+  const blok = document.getElementById('pond-blok').value.trim();
+  if (!nama || !blok) { Swal.fire('Data Belum Lengkap', 'Nama dan Blok wajib diisi.', 'warning'); return; }
+  await callServer('apiSaveMasterPond', AppState.token, {
+    Pond_ID: document.getElementById('pond-id').value || undefined,
+    Nama_Pond: nama, Blok_Area: blok,
+    Latitude: document.getElementById('pond-lat').value,
+    Longitude: document.getElementById('pond-lng').value,
+    Jumlah_Kompartemen: Number(document.getElementById('pond-kompartemen').value || 1),
+    Status: document.getElementById('pond-status').value
+  });
+  document.getElementById('modal-pond').classList.remove('active');
+  const data = await callServer('apiGetInitialAppData', AppState.token);
+  AppState.ponds = data.ponds; populatePondDropdowns(); refreshMasterData();
+  Swal.fire({ icon: 'success', title: 'Titik Settling Pond Tersimpan', timer: 1500, showConfirmButton: false });
+});
+
+// ============================================================
+// 15. PENGATURAN SISTEM
+// ============================================================
+function refreshSettings() {
+  document.getElementById('set-company').value = AppState.config.COMPANY_NAME || '';
+  document.getElementById('set-appname').value = AppState.config.APP_NAME || '';
+  document.getElementById('set-region').value = AppState.config.REGION_NAME || '';
+  document.getElementById('set-address').value = AppState.config.COMPANY_ADDRESS || '';
+  document.getElementById('set-license').value = AppState.config.COMPANY_LICENSE || '';
+  document.getElementById('set-phone').value = AppState.config.COMPANY_PHONE || '';
+  document.getElementById('set-primary').value = AppState.config.PRIMARY_COLOR || '#0F5132';
+  if (document.getElementById('set-login-bg')) {
+    document.getElementById('set-login-bg').value = AppState.config.LOGIN_BG_URL || localStorage.getItem('enviromine_login_bg') || '';
+  }
+  refreshUserTable();
+}
+
+// Upload file gambar latar login langsung dari perangkat
+let selectedLoginBgBase64 = null;
+let selectedLoginBgMime = 'image/jpeg';
+document.getElementById('set-login-bg-file')?.addEventListener('change', function (e) {
+  const file = e.target.files[0];
+  if (!file) {
+    selectedLoginBgBase64 = null;
+    return;
+  }
+  if (file.size > 3.5 * 1024 * 1024) {
+    Swal.fire('File Terlalu Besar', 'Ukuran gambar latar disarankan maksimal 3.5MB agar halaman login dapat dimuat dengan cepat.', 'warning');
+  }
+  selectedLoginBgMime = file.type || 'image/jpeg';
+  const reader = new FileReader();
+  reader.onload = function (evt) {
+    selectedLoginBgBase64 = evt.target.result;
+    applyLoginBg(selectedLoginBgBase64);
+    const urlInput = document.getElementById('set-login-bg');
+    if (urlInput) urlInput.placeholder = 'File lokal: ' + file.name + ' (akan disimpan otomatis ke Drive)';
+    Swal.fire({
+      icon: 'success',
+      title: 'Pratinjau Foto Latar',
+      text: 'Foto telah dimuat ke tampilan pratinjau. Klik "Simpan Pengaturan" untuk mengupload ke Drive & menyimpannya secara permanen.',
+      timer: 2500,
+      showConfirmButton: false
+    });
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('form-settings').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  let loginBg = document.getElementById('set-login-bg')?.value.trim() || '';
+
+  // 1. Upload Logo jika ada file yang dipilih
+  const logoFile = document.getElementById('set-logo')?.files[0];
+  if (logoFile) {
+    const base64 = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(logoFile); });
+    const resLogo = await callServer('apiUploadLogo', AppState.token, base64, logoFile.type);
+    if (resLogo && resLogo.LOGO_URL) {
+      AppState.config.LOGO_URL = resLogo.LOGO_URL;
+      localStorage.setItem('enviromine_logo_url', resLogo.LOGO_URL);
+      applyLoginLogo(resLogo.LOGO_URL);
+    }
+  }
+
+  // 2. Upload Background Login jika dipilih file lokal
+  if (selectedLoginBgBase64) {
+    const resBg = await callServer('apiUploadLoginBg', AppState.token, selectedLoginBgBase64, selectedLoginBgMime);
+    if (resBg && resBg.LOGIN_BG_URL) {
+      loginBg = resBg.LOGIN_BG_URL;
+      document.getElementById('set-login-bg').value = loginBg;
+      selectedLoginBgBase64 = null;
+    }
+  } else if (loginBg) {
+    loginBg = normalizeImageUrl(loginBg);
+    document.getElementById('set-login-bg').value = loginBg;
+  }
+
+  const configData = {
+    COMPANY_NAME: document.getElementById('set-company').value,
+    APP_NAME: document.getElementById('set-appname').value,
+    REGION_NAME: document.getElementById('set-region').value,
+    COMPANY_ADDRESS: document.getElementById('set-address').value,
+    COMPANY_LICENSE: document.getElementById('set-license').value,
+    COMPANY_PHONE: document.getElementById('set-phone').value,
+    PRIMARY_COLOR: document.getElementById('set-primary').value,
+    LOGIN_BG_URL: loginBg
+  };
+
+  await callServer('apiSaveConfig', AppState.token, configData);
+  Object.assign(AppState.config, configData);
+  if (loginBg) {
+    localStorage.setItem('enviromine_login_bg', loginBg);
+    applyLoginBg(loginBg);
+  }
+  applyTheme();
+  Swal.fire({ icon: 'success', title: 'Pengaturan Tersimpan', text: 'Konfigurasi identitas & gambar latar berhasil disimpan.', timer: 2000, showConfirmButton: false });
+});
+
+async function refreshUserTable() {
+  if (AppState.session.role !== 'MANAJEMEN' && AppState.session.role !== 'ADMIN') return;
+  const users = await callServer('apiGetUsers', AppState.token);
+  AppState.usersCache = users;
+  document.getElementById('user-table-body').innerHTML = users.map(u => `
+    <tr><td class="mono">${u.Username}</td><td>${u.Nama_Lengkap}</td>
+    <td><span class="badge ${u.Role === 'ADMIN' ? 'admin-role' : 'badge-info'}">${u.Role}</span></td>
+    <td><span class="badge ${u.Status_Aktif ? 'badge-compliant' : 'badge-violation'}">${u.Status_Aktif ? 'AKTIF' : 'NONAKTIF'}</span></td>
+    <td><button class="btn btn-sm btn-outline" onclick="openEditUserModal('${u.User_ID}')"><i class="fa-solid fa-pen"></i> Edit</button></td></tr>`).join('');
+}
+
+document.getElementById('btn-add-user').addEventListener('click', async () => {
+  const { value: formValues } = await Swal.fire({
+    title: 'Tambah Pengguna',
+    html: `<input id="swal-username" class="swal2-input" placeholder="Username"><input id="swal-nama" class="swal2-input" placeholder="Nama Lengkap"><input id="swal-email" class="swal2-input" placeholder="Email"><select id="swal-role" class="swal2-select"><option value="OPERATOR">OPERATOR</option><option value="SUPERVISOR">SUPERVISOR</option><option value="MANAJEMEN">MANAJEMEN</option><option value="ADMIN">ADMIN</option></select>`,
+    focusConfirm: false,
+    preConfirm: () => ({ Username: document.getElementById('swal-username').value, Nama_Lengkap: document.getElementById('swal-nama').value, Email: document.getElementById('swal-email').value, Role: document.getElementById('swal-role').value })
+  });
+  if (!formValues || !formValues.Username) return;
+  await callServer('apiSaveUser', AppState.token, formValues);
+  Swal.fire({ icon: 'success', title: 'Pengguna Ditambahkan', text: 'Kata sandi default: ganti123', timer: 2500, showConfirmButton: false });
+  refreshUserTable();
+});
+
+async function openEditUserModal(userId) {
+  const u = (AppState.usersCache || []).find(x => x.User_ID === userId);
+  if (!u) return;
+  const { value: formValues } = await Swal.fire({
+    title: `Edit Pengguna — ${u.Username}`,
+    html: `
+      <label style="display:block;text-align:left;font-size:11px;font-weight:700;color:#475569;margin:.4rem 0 .2rem;">Username</label>
+      <input id="swal-edit-username" class="swal2-input" value="${u.Username}" style="margin:0;">
+      <label style="display:block;text-align:left;font-size:11px;font-weight:700;color:#475569;margin:.6rem 0 .2rem;">Nama Lengkap</label>
+      <input id="swal-edit-nama" class="swal2-input" value="${u.Nama_Lengkap}" style="margin:0;">
+      <label style="display:block;text-align:left;font-size:11px;font-weight:700;color:#475569;margin:.6rem 0 .2rem;">Email</label>
+      <input id="swal-edit-email" class="swal2-input" value="${u.Email || ''}" style="margin:0;">
+      <label style="display:block;text-align:left;font-size:11px;font-weight:700;color:#475569;margin:.6rem 0 .2rem;">Role</label>
+      <select id="swal-edit-role" class="swal2-select" style="margin:0;">
+        <option value="OPERATOR" ${u.Role === 'OPERATOR' ? 'selected' : ''}>OPERATOR</option>
+        <option value="SUPERVISOR" ${u.Role === 'SUPERVISOR' ? 'selected' : ''}>SUPERVISOR</option>
+        <option value="MANAJEMEN" ${u.Role === 'MANAJEMEN' ? 'selected' : ''}>MANAJEMEN</option>
+        <option value="ADMIN" ${u.Role === 'ADMIN' ? 'selected' : ''}>ADMIN</option>
+      </select>
+      <label style="display:block;text-align:left;font-size:11px;font-weight:700;color:#475569;margin:.6rem 0 .2rem;">Status Akun</label>
+      <select id="swal-edit-status" class="swal2-select" style="margin:0;">
+        <option value="true" ${u.Status_Aktif ? 'selected' : ''}>AKTIF</option>
+        <option value="false" ${!u.Status_Aktif ? 'selected' : ''}>NONAKTIF</option>
+      </select>
+      <label style="display:block;text-align:left;font-size:11px;font-weight:700;color:#475569;margin:.6rem 0 .2rem;">Reset Kata Sandi (opsional)</label>
+      <input id="swal-edit-password" class="swal2-input" type="password" placeholder="Kosongkan jika tidak diubah" style="margin:0;">
+    `,
+    focusConfirm: false, showCancelButton: true, confirmButtonText: 'Simpan Perubahan', cancelButtonText: 'Batal',
+    preConfirm: () => ({
+      User_ID: u.User_ID,
+      Username: document.getElementById('swal-edit-username').value.trim(),
+      Nama_Lengkap: document.getElementById('swal-edit-nama').value.trim(),
+      Email: document.getElementById('swal-edit-email').value.trim(),
+      Role: document.getElementById('swal-edit-role').value,
+      Status_Aktif: document.getElementById('swal-edit-status').value === 'true',
+      Password: document.getElementById('swal-edit-password').value
+    })
+  });
+  if (!formValues) return;
+  await callServer('apiSaveUser', AppState.token, formValues);
+  Swal.fire({ icon: 'success', title: 'Pengguna Diperbarui', timer: 1500, showConfirmButton: false });
+  refreshUserTable();
+}
+
+// ============================================================
+// 16. PENGATURAN PROFIL PENGGUNA (MODAL PROFILE)
+// ============================================================
+let tempProfilePhotoBase64 = null;
+
+document.getElementById('btn-user-profile')?.addEventListener('click', () => {
+  const s = AppState.session;
+  if (!s) return;
+  document.getElementById('profile-nama').value = s.namaLengkap || '';
+  document.getElementById('profile-username').value = s.username || '';
+  document.getElementById('profile-role').value = s.role || 'OPERATOR';
+  document.getElementById('profile-password').value = '';
+  document.getElementById('profile-password-confirm').value = '';
+  tempProfilePhotoBase64 = null;
+
+  const prevEl = document.getElementById('profile-avatar-preview');
+  const savedAvatar = localStorage.getItem('enviromine_avatar_' + s.username);
+  if (savedAvatar && prevEl) {
+    prevEl.innerHTML = `<img src="${savedAvatar}" style="width:100%;height:100%;object-fit:cover;">`;
+  } else if (prevEl) {
+    prevEl.textContent = (s.namaLengkap || '?').split(' ').map(w => w[0]).slice(0, 2).join('');
+  }
+
+  document.getElementById('modal-profile').classList.add('active');
+});
+
+document.getElementById('close-modal-profile')?.addEventListener('click', () => {
+  document.getElementById('modal-profile').classList.remove('active');
+});
+document.getElementById('cancel-modal-profile')?.addEventListener('click', () => {
+  document.getElementById('modal-profile').classList.remove('active');
+});
+
+// Preview foto profil yang dipilih
+document.getElementById('profile-photo-input')?.addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    Swal.fire('File Terlalu Besar', 'Ukuran foto maksimal adalah 2MB.', 'warning');
+    this.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function (e) {
+    tempProfilePhotoBase64 = e.target.result;
+    const prevEl = document.getElementById('profile-avatar-preview');
+    if (prevEl) {
+      prevEl.innerHTML = `<img src="${tempProfilePhotoBase64}" style="width:100%;height:100%;object-fit:cover;">`;
+    }
+  };
+  reader.readAsDataURL(file);
+});
+
+// Simpan Pengaturan Profil
+document.getElementById('save-modal-profile')?.addEventListener('click', async () => {
+  const nama = document.getElementById('profile-nama').value.trim();
+  const username = document.getElementById('profile-username').value.trim();
+  const role = document.getElementById('profile-role').value;
+  const pw = document.getElementById('profile-password').value;
+  const pwConf = document.getElementById('profile-password-confirm').value;
+
+  if (!nama || !username) {
+    Swal.fire('Data Belum Lengkap', 'Nama lengkap dan username tidak boleh kosong.', 'warning');
+    return;
+  }
+  if (pw && pw !== pwConf) {
+    Swal.fire('Kata Sandi Tidak Cocok', 'Konfirmasi kata sandi tidak sama dengan kata sandi baru.', 'warning');
+    return;
+  }
+
+  // Simpan foto avatar ke penyimpanan browser
+  if (tempProfilePhotoBase64) {
+    localStorage.setItem('enviromine_avatar_' + username, tempProfilePhotoBase64);
+  }
+
+  // Perbarui session aktif
+  AppState.session.namaLengkap = nama;
+  AppState.session.username = username;
+  AppState.session.role = role;
+
+  // Coba sinkronisasi ke server spreadsheet
+  try {
+    await callServer('apiSaveUser', AppState.token, {
+      User_ID: AppState.session.userId,
+      Username: username,
+      Nama_Lengkap: nama,
+      Email: AppState.session.email || '',
+      Role: role,
+      Status_Aktif: true,
+      Password: pw || ''
+    });
+  } catch (e) {
+    // Sesi tetap terupdate di tampilan jika server memerlukan hak tertentu
+  }
+
+  applySessionUI();
+  buildSidebarByRole();
+  buildDashboardLabelsByRole();
+  document.getElementById('modal-profile').classList.remove('active');
+  Swal.fire({ icon: 'success', title: 'Profil Diperbarui', text: 'Perubahan data profil berhasil disimpan.', timer: 2000, showConfirmButton: false });
+});
