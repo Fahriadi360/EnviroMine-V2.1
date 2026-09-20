@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>EnviroMine Compliance Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════ LOADING ═══════════════════ -->
+<div id="loading-overlay"><div class="spinner"></div></div>
+
+<!-- ═══════════════════ PRINT AREA ═══════════════════ -->
+<div id="print-area"><div id="print-doc-root" class="print-doc"></div></div>
+
+<!-- ═══════════════════ LOGIN ═══════════════════ -->
+<div id="view-login">
+
+  <!-- Dedicated Background Image Layer -->
+  <div id="login-bg-image" class="login-bg-image"></div>
+
+  <!-- Background Overlay -->
+  <div class="login-bg-overlay"></div>
+
+  <!-- Centered Card -->
+  <div class="login-center-card">
+
+    <!-- Logo -->
+    <div class="login-logo-row">
+      <div class="login-brand-icon" id="login-brand-icon"><i class="fa-solid fa-droplet"></i></div>
+      <span class="login-brand-name" id="login-app-name">EnviroMine Compliance Hub</span>
+    </div>
+
+    <!-- Heading -->
+    <h1 class="login-welcome-title">Welcome Back!</h1>
+    <p class="login-welcome-sub">Masuk ke Sistem Pemantauan Kualitas Air Limbah Tambang</p>
+
+    <!-- Form -->
+    <form id="form-login" novalidate>
+
+      <!-- Username -->
+      <div class="login-field-group">
+        <span class="login-field-icon">
+          <i class="fa-regular fa-user"></i>
+        </span>
+        <input
+          id="login-username"
+          type="text"
+          autocomplete="username"
+          placeholder="Masukkan username Anda"
+          required
+        />
+      </div>
+
+      <!-- Password -->
+      <div class="login-field-group">
+        <span class="login-field-icon">
+          <i class="fa-solid fa-lock"></i>
+        </span>
+        <input
+          id="login-password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          required
+        />
+        <button type="button" class="login-pw-toggle" id="login-pw-toggle" title="Tampilkan password">
+          <i class="fa-regular fa-eye" id="login-pw-eye-icon"></i>
+        </button>
+      </div>
+
+      <!-- Options Row -->
+      <div class="login-options-row">
+        <label class="login-remember-label">
+          <input type="checkbox" id="login-remember" />
+          <span class="login-custom-check"></span>
+          <span>Ingat Saya</span>
+        </label>
+        <a href="#" class="login-forgot-link" id="login-forgot-link">Lupa kata sandi?</a>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" class="btn-login-submit" id="btn-login-submit">
+        <span>MASUK</span>
+        <i class="fa-solid fa-chevron-right" style="font-size:12px;"></i>
+      </button>
+
+    </form>
+
+    <!-- Footer region label -->
+    <div class="login-region-footer" id="login-region-footer">Site Monitoring System</div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════ APP ═══════════════════ -->
+<div id="app" class="hidden" style="display:flex;flex-direction:column;min-height:100vh;">
+
+  <!-- TOPBAR -->
+  <header class="topbar no-print">
+    <div class="topbar-center">
+      <button id="btn-sidebar-toggle" title="Sembunyikan Sidebar"><i class="fa-solid fa-bars"></i></button>
+      <div class="topbar-brand">
+        <img id="topbar-logo" src="https://www.gstatic.com/images/branding/product/2x/sheets_48dp.png" alt="Logo">
+        <div><span class="app-name" id="topbar-appname">EnviroMine</span><span class="app-tag">Compliance Hub</span></div>
+      </div>
+      <div class="site-chip"><i class="fa-solid fa-location-dot" style="font-size:10px;"></i><span id="topbar-region">—</span></div>
+      <div class="online-pill no-print"><div class="dot"></div>Online</div>
+    </div>
+    <div class="topbar-right">
+      <!-- Tombol Ganti Tema Gelap / Terang -->
+      <button id="btn-theme-toggle" class="theme-btn" title="Ganti Mode Gelap / Terang">
+        <i class="fa-solid fa-moon" id="theme-toggle-icon"></i>
+      </button>
+
+      <div style="position:relative;">
+        <button class="bell-btn" title="Notifikasi"><i class="fa-solid fa-bell" style="font-size:15px;"></i>
+          <span id="bell-dot" class="badge-dot" style="display:none;"></span>
+          <span id="bell-count" class="hidden"></span>
+        </button>
+      </div>
+
+      <!-- User Chip (Klik untuk Profil) -->
+      <div class="user-chip" id="btn-user-profile" title="Klik untuk Pengaturan Profil">
+        <div class="user-meta">
+          <div class="u-name" id="user-name">—</div>
+          <div class="u-role" id="user-role">—</div>
+        </div>
+        <div class="user-avatar" id="user-avatar-wrap"><span id="user-initial">?</span></div>
+      </div>
+
+      <button class="btn btn-outline btn-sm no-print" id="btn-logout"><i class="fa-solid fa-right-from-bracket me-1"></i>Keluar</button>
+    </div>
+  </header>
+
+  <div class="app-shell">
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar no-print" id="sidebar-nav">
+
+      <div class="sidebar-section-label">UTAMA</div>
+      <div class="nav-item active" data-view="dashboard" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
+        <div class="nav-item-left"><i class="fa-solid fa-gauge-high"></i>Dashboard</div>
+      </div>
+      <div class="nav-item" data-view="form-harian" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
+        <div class="nav-item-left"><i class="fa-solid fa-flask-vial"></i>Form Lapangan</div>
+      </div>
+      <div class="nav-item" data-view="log-table" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
+        <div class="nav-item-left"><i class="fa-solid fa-table-list"></i>Ledger Log</div>
+      </div>
+
+      <div class="sidebar-section-label">MONITORING</div>
+      <div class="nav-item" data-view="disposisi-investigasi" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
+        <div class="nav-item-left"><i class="fa-solid fa-triangle-exclamation"></i>Disposisi & Investigasi</div>
+        <span class="nav-badge hidden" id="nav-badge-disposisi">0</span>
+      </div>
+      <div class="nav-item" data-view="lab" data-roles="SUPERVISOR,MANAJEMEN,ADMIN">
+        <div class="nav-item-left"><i class="fa-solid fa-microscope"></i>Hasil Lab</div>
+      </div>
+
+      <div class="sidebar-section-label">PELAPORAN</div>
+      <div class="nav-item" data-view="laporan" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN">
+        <div class="nav-item-left"><i class="fa-solid fa-file-lines"></i>Laporan Resmi</div>
+      </div>
+
+      <div class="sidebar-section-label">ADMINISTRASI</div>
+      <div class="nav-item" data-view="master" data-roles="SUPERVISOR,MANAJEMEN,ADMIN">
+        <div class="nav-item-left"><i class="fa-solid fa-database"></i>Master Data</div>
+      </div>
+      <div class="nav-item" data-view="settings" data-roles="MANAJEMEN,ADMIN">
+        <div class="nav-item-left"><i class="fa-solid fa-gear"></i>Pengaturan</div>
+      </div>
+
+      <div style="padding:1rem 1.25rem;margin-top:.5rem;border-top:1px solid var(--border);">
+        <a href="#" id="btn-open-signature" style="display:flex;align-items:center;gap:.6rem;font-size:12.5px;font-weight:600;color:var(--text-secondary);">
+          <i class="fa-solid fa-signature"></i>Tanda Tangan Digital
+        </a>
+      </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <!-- ══════════ DASHBOARD ══════════ -->
+      <div id="view-dashboard" class="view-container">
+        <div class="breadcrumb-row">Sistem Pemantauan <span class="chip-inline">Real-time</span></div>
+        <h1 class="page-title" id="dash-title">Dashboard</h1>
+        <p class="page-subtitle" id="dash-subtitle">Pemantauan kualitas air limbah tambang.</p>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
+          <div class="kpi-card">
+            <div class="kpi-label" id="kpi-label-1">Sampling Hari Ini</div>
+            <div><span class="kpi-value" id="kpi-value-1">—</span><span class="kpi-unit">sampel</span></div>
+            <div class="kpi-sub" id="kpi-sub-1">Pemantauan aktif pada hari ini</div>
+            <div class="kpi-icon" style="background:var(--primary);"><i class="fa-solid fa-vials"></i></div>
+          </div>
+          <div class="kpi-card" id="kpi-card-2">
+            <div class="kpi-label" id="kpi-label-2">Pelanggaran Aktif</div>
+            <div><span class="kpi-value" id="kpi-value-2">—</span><span class="kpi-unit">insiden</span></div>
+            <div class="kpi-sub" id="kpi-sub-2">Membutuhkan tindak lanjut</div>
+            <div class="kpi-icon" style="background:var(--violation-text);"><i class="fa-solid fa-circle-exclamation"></i></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label" id="kpi-label-3">Tertunda</div>
+            <div><span class="kpi-value" id="kpi-value-3">—</span><span class="kpi-unit">item</span></div>
+            <div class="kpi-sub" id="kpi-sub-3">Menunggu tindakan</div>
+            <div class="kpi-icon" style="background:var(--warning-text);"><i class="fa-solid fa-hourglass-half"></i></div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label" id="kpi-label-4">Compliance Rate</div>
+            <div><span class="kpi-value" id="kpi-value-4">—</span></div>
+            <div class="kpi-sub" id="kpi-sub-4">Tingkat kepatuhan baku mutu</div>
+            <div class="kpi-icon" style="background:var(--compliant-text);"><i class="fa-solid fa-shield-check"></i></div>
+          </div>
+        </div>
+
+        <div class="dash-chart-grid">
+          <div class="chart-card">
+            <div class="chart-card-title">
+              Tren pH & TSS (14 Hari Terakhir)
+              <span class="chart-sub">Rata-rata harian semua titik</span>
+            </div>
+            <div class="chart-wrap h-220"><canvas id="chart-trend"></canvas></div>
+          </div>
+          <div class="chart-card" style="display:flex;flex-direction:column;justify-content:center;">
+            <div class="chart-card-title">Compliance Rate Bulan Ini</div>
+            <div class="chart-wrap h-200 donut-wrapper"><canvas id="chart-compliance-donut"></canvas></div>
+          </div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom:var(--sp-lg);">
+          <div class="chart-card-title">
+            Compliance Rate per Settling Pond
+            <span class="chart-sub">Hijau ≥80% · Kuning ≥60% · Merah &lt;60%</span>
+          </div>
+          <div class="chart-wrap h-160"><canvas id="chart-pond-compliance"></canvas></div>
+        </div>
+
+        <div class="card-panel">
+          <div class="card-panel-header">
+            <span class="card-panel-title"><i class="fa-solid fa-circle-radiation me-1" style="color:var(--violation-text);"></i>Pelanggaran Baku Mutu Aktif</span>
+            <button class="btn btn-outline btn-sm" onclick="navigateTo('disposisi-investigasi')"><i class="fa-solid fa-arrow-right me-1"></i>Kelola Disposisi</button>
+          </div>
+          <div id="anomaly-alert-list"></div>
+        </div>
+
+        <div id="panel-operator-cta" class="card-panel hidden" style="border-color:var(--compliant-border);background:var(--compliant-bg);">
+          <div class="card-panel-header">
+            <span class="card-panel-title" style="color:var(--compliant-text);"><i class="fa-solid fa-circle-check me-1"></i>Siap Input Sampling?</span>
+          </div>
+          <p style="font-size:13px;color:var(--compliant-text);margin:0 0 .75rem;">Mulai input data pemantauan lapangan hari ini.</p>
+          <button class="btn btn-primary" onclick="navigateTo('form-harian')"><i class="fa-solid fa-flask-vial me-1"></i>Buka Form Lapangan</button>
+        </div>
+
+        <div id="panel-operator-riwayat" class="card-panel hidden">
+          <div class="card-panel-header">
+            <span class="card-panel-title">Sampling Saya Hari Ini</span>
+          </div>
+          <div class="table-outer"><div class="table-scroll">
+            <table class="table-mine"><thead><tr><th>Jam</th><th>Pond</th><th>Aliran</th><th>Status</th></tr></thead>
+            <tbody id="operator-riwayat-body"><tr><td colspan="4" class="text-center text-muted" style="padding:1.5rem;">Belum ada input hari ini.</td></tr></tbody></table>
+          </div></div>
+        </div>
+
+        <div id="panel-ktt-approval" class="card-panel hidden">
+          <div class="card-panel-header">
+            <span class="card-panel-title"><i class="fa-solid fa-file-signature me-1" style="color:var(--info);"></i>Menunggu Persetujuan KTT</span>
+            <button class="btn btn-outline btn-sm" onclick="refreshDashboard()"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+          </div>
+          <div class="table-outer"><div class="table-scroll">
+            <table class="table-mine"><thead><tr><th>ID</th><th>Pond</th><th>pH</th><th>TSS</th><th>Diperiksa SPV</th><th>Aksi</th></tr></thead>
+            <tbody id="ktt-approval-body"><tr><td colspan="6" class="text-center text-muted" style="padding:1.5rem;">Tidak ada item tertunda.</td></tr></tbody></table>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- ══════════ FORM HARIAN ══════════ -->
+      <div id="view-form-harian" class="view-container hidden">
+        <div class="breadcrumb-row">Input Data</div>
+        <h1 class="page-title">Form Pemantauan Lapangan</h1>
+        <p class="page-subtitle">Input hasil pengukuran parameter kualitas air outlet settling pond dan titik pembuangan.</p>
+
+        <div id="fh-anomaly-banner" class="hidden" style="background:var(--violation-bg);border:1px solid var(--violation-border);border-radius:var(--r-lg);padding:.75rem 1rem;margin-bottom:var(--sp-lg);display:flex;align-items:center;gap:.5rem;color:var(--violation-text);font-weight:700;font-size:13px;">
+          <i class="fa-solid fa-triangle-exclamation"></i> Nilai melebihi baku mutu! Periksa kembali data atau segera buat Disposisi Investigasi.
+        </div>
+
+        <form id="form-harian" novalidate>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
+            <div>
+              <div class="card-panel">
+                <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-location-dot me-1"></i>Lokasi & Waktu</span></div>
+                <div class="form-row">
+                  <label class="form-label">Settling Pond *</label>
+                  <select id="fh-pond" class="form-control" required><option value="">— Pilih Settling Pond —</option></select>
+                </div>
+                <div class="form-row">
+                  <label class="form-label">Titik Aliran *</label>
+                  <div class="flow-toggle">
+                    <button type="button" class="flow-btn active" data-val="OUTLET">OUTLET</button>
+                    <button type="button" class="flow-btn" data-val="INLET">INLET</button>
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;" class="form-row">
+                  <div>
+                    <label class="form-label">Tanggal *</label>
+                    <input type="date" id="fh-tanggal" class="form-control" required>
+                  </div>
+                  <div>
+                    <label class="form-label">Jam Sampling *</label>
+                    <input type="time" id="fh-jam" class="form-control" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <label class="form-label">Koordinat Manual</label>
+                  <input type="text" id="fh-koord-manual" class="form-control form-control-mono" placeholder="-0.494820, 117.143210">
+                </div>
+                <div class="form-row">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem;">
+                    <label class="form-label" style="margin:0;">Koordinat GPS</label>
+                    <button type="button" class="btn btn-sm btn-outline" id="btn-gps"><i class="fa-solid fa-location-crosshairs me-1"></i>Ambil GPS</button>
+                  </div>
+                  <input type="text" id="fh-koord-gps" class="form-control form-control-mono" placeholder="Tekan 'Ambil GPS'…" readonly>
+                  <div id="gps-indicator" class="gps-status-indicator hidden" style="margin-top:.4rem;"></div>
+                </div>
+              </div>
+
+              <div class="card-panel">
+                <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-droplet me-1"></i>Data Hidrologi</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                  <div class="form-row">
+                    <label class="form-label">Debit Air (m³/jam)</label>
+                    <input type="number" id="fh-debit" class="form-control form-control-mono" step="0.01" min="0" placeholder="0.00">
+                  </div>
+                  <div class="form-row">
+                    <label class="form-label">Curah Hujan (mm)</label>
+                    <input type="number" id="fh-hujan" class="form-control form-control-mono" step="0.1" min="0" placeholder="0.0">
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-panel">
+                <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-camera me-1"></i>Dokumentasi Foto</span></div>
+                <p style="font-size:12px;color:var(--text-muted);margin-bottom:.75rem;">Maksimal 5 foto · JPEG/PNG · Foto otomatis dikompres sebelum upload</p>
+                <input type="file" id="fh-photo-input" accept="image/*" multiple style="display:none;">
+                <div class="preview-gallery" id="photo-gallery">
+                  <label class="photo-add-btn"><i class="fa-solid fa-plus" style="font-size:20px;"></i><span>Tambah Foto</span></label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="card-panel">
+                <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-chart-bar me-1"></i>Pengukuran Parameter Kualitas Air</span></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                  <div class="sensor-card" id="sensor-card-ph">
+                    <div class="sensor-label">pH<span class="badge badge-compliant" id="sensor-badge-ph">COMPLIANT</span></div>
+                    <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-ph" data-param="PH" step="0.01" min="0" max="14" placeholder="7.50" required><span class="sensor-unit">—</span></div>
+                    <div class="sensor-threshold" id="sensor-threshold-ph">Baku Mutu: 6.0 – 9.0</div>
+                  </div>
+                  <div class="sensor-card" id="sensor-card-tss">
+                    <div class="sensor-label">TSS<span class="badge badge-compliant" id="sensor-badge-tss">COMPLIANT</span></div>
+                    <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-tss" data-param="TSS" step="0.1" min="0" placeholder="0.0" required><span class="sensor-unit">mg/L</span></div>
+                    <div class="sensor-threshold" id="sensor-threshold-tss">Baku Mutu: 0 – 200</div>
+                  </div>
+                  <div class="sensor-card" id="sensor-card-fe">
+                    <div class="sensor-label">Fe Total<span class="badge badge-compliant" id="sensor-badge-fe">COMPLIANT</span></div>
+                    <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-fe" data-param="FE" step="0.001" min="0" placeholder="0.000" required><span class="sensor-unit">mg/L</span></div>
+                    <div class="sensor-threshold" id="sensor-threshold-fe">Baku Mutu: 0 – 7.0</div>
+                  </div>
+                  <div class="sensor-card" id="sensor-card-mn">
+                    <div class="sensor-label">Mn Total<span class="badge badge-compliant" id="sensor-badge-mn">COMPLIANT</span></div>
+                    <div class="sensor-value"><input type="number" class="sensor-input param-input" id="fh-mn" data-param="MN" step="0.001" min="0" placeholder="0.000" required><span class="sensor-unit">mg/L</span></div>
+                    <div class="sensor-threshold" id="sensor-threshold-mn">Baku Mutu: 0 – 4.0</div>
+                  </div>
+                </div>
+                <div style="margin-top:.75rem;padding:.65rem;background:var(--surface-alt);border-radius:var(--r-sm);font-size:11px;color:var(--text-muted);">
+                  Baku mutu mengacu pada Kepmen LH No. 113/2003 & Perda Kaltim No. 02/2011. Nilai di luar rentang akan otomatis ditandai pelanggaran.
+                </div>
+              </div>
+              <div style="margin-top:var(--sp-lg);">
+                <button type="submit" class="btn btn-primary" style="width:100%;padding:.75rem;font-size:14px;"><i class="fa-solid fa-paper-plane me-1"></i>Simpan & Kirim Data Pemantauan</button>
+                <button type="button" class="btn btn-outline" style="width:100%;margin-top:.5rem;" onclick="document.getElementById('form-harian').reset();AppState.photos=[];renderPhotoGallery();prefillFormHarian();"><i class="fa-solid fa-rotate-left me-1"></i>Reset Form</button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ══════════ LEDGER LOG ══════════ -->
+      <div id="view-log-table" class="view-container hidden">
+        <div class="breadcrumb-row">Data</div>
+        <h1 class="page-title">Ledger Log Harian</h1>
+        <p class="page-subtitle">Riwayat lengkap seluruh data pemantauan lapangan dengan validasi berjenjang SPV → KTT.</p>
+        <div class="card-panel">
+          <div class="card-panel-header">
+            <span class="card-panel-title">Filter Data</span>
+            <button class="btn btn-primary btn-sm" id="btn-refresh-ledger"><i class="fa-solid fa-rotate me-1"></i>Refresh Tabel</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;">
+            <div><label class="form-label">Dari Tanggal</label><input type="date" id="filter-start" class="form-control"></div>
+            <div><label class="form-label">Sampai Tanggal</label><input type="date" id="filter-end" class="form-control"></div>
+            <div><label class="form-label">Settling Pond</label>
+              <select id="filter-pond" class="form-control"><option value="">Semua Pond</option></select></div>
+            <div><label class="form-label">Status Mutu</label>
+              <select id="filter-status" class="form-control"><option value="">Semua Status</option><option value="NORMAL">NORMAL</option><option value="MELEBIHI BAKU MUTU">MELEBIHI BAKU MUTU</option></select></div>
+          </div>
+        </div>
+        <div class="card-panel" style="padding:0;">
+          <div class="card-panel-header" style="padding:var(--sp-lg) var(--sp-lg) 0;">
+            <span class="card-panel-title">Rekam Data</span>
+          </div>
+          <div id="ledger-audit-strip" class="audit-strip" style="margin:.5rem var(--sp-lg) .5rem;">Memuat data…</div>
+          <div class="table-outer" style="border-radius:0;border-left:0;border-right:0;border-bottom:0;">
+            <div class="table-scroll">
+              <table class="table-mine">
+                <thead>
+                  <tr>
+                    <th>Log ID</th><th>Tanggal & Jam</th><th>Pond</th><th>Aliran</th>
+                    <th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th>
+                    <th>Status Mutu</th><th>Validasi</th><th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="log-table-body">
+                  <tr><td colspan="11" class="text-center text-muted" style="padding:3rem;">Klik Refresh Tabel atau pindah ke tab lain lalu kembali untuk memuat data.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ DISPOSISI & INVESTIGASI ══════════ -->
+      <div id="view-disposisi-investigasi" class="view-container hidden">
+        <div class="breadcrumb-row">Monitoring</div>
+        <h1 class="page-title">Disposisi & Investigasi Insiden</h1>
+        <p class="page-subtitle">Kelola tindak lanjut pelanggaran baku mutu secara berjenjang hingga penyelesaian.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-lg);margin-bottom:var(--sp-lg);">
+          <div class="kpi-card"><div class="kpi-label">Terbuka</div><div><span class="kpi-value" id="disp-kpi-open">—</span></div></div>
+          <div class="kpi-card"><div class="kpi-label">Dalam Proses</div><div><span class="kpi-value" id="disp-kpi-progress">—</span></div></div>
+          <div class="kpi-card"><div class="kpi-label">Diselesaikan</div><div><span class="kpi-value" id="disp-kpi-resolved">—</span></div></div>
+        </div>
+        <div class="card-panel-header" style="margin-bottom:.75rem;">
+          <span class="card-panel-title"><i class="fa-solid fa-list-check me-1"></i>Daftar Insiden</span>
+          <button class="btn btn-sm btn-outline" id="btn-refresh-disposisi"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+        </div>
+        <div id="disposisi-list"><p class="text-muted">Memuat…</p></div>
+      </div>
+
+      <!-- ══════════ LABORATORIUM ══════════ -->
+      <div id="view-lab" class="view-container hidden">
+        <div class="breadcrumb-row">Monitoring</div>
+        <h1 class="page-title">Hasil Uji Laboratorium</h1>
+        <p class="page-subtitle">Upload dan kelola sertifikat hasil uji laboratorium eksternal per periode bulanan.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
+          <div class="card-panel">
+            <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-file-arrow-up me-1"></i>Input Hasil Lab Baru</span></div>
+            <form id="form-lab" novalidate>
+              <div class="form-row"><label class="form-label">Bulan Periode *</label><input type="month" id="lab-periode" class="form-control" required></div>
+              <div class="form-row"><label class="form-label">Settling Pond *</label><select id="lab-pond" class="form-control"><option value="">— Pilih Pond —</option></select></div>
+              <div class="form-row"><label class="form-label">Titik Aliran</label><input type="text" id="lab-aliran" class="form-control" placeholder="OUTLET" value="OUTLET"></div>
+              <div class="form-row"><label class="form-label">Nama Laboratorium *</label><input type="text" id="lab-nama" class="form-control" placeholder="PT Sucofindo / Baristand / dll" required></div>
+              <div class="form-row"><label class="form-label">Nomor Sertifikat *</label><input type="text" id="lab-sertifikat" class="form-control form-control-mono" placeholder="LAB/2024/001" required></div>
+              <div class="form-row"><label class="form-label">Tanggal Analisis *</label><input type="date" id="lab-tanggal" class="form-control" required></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem;">
+                <div><label class="form-label">pH</label><input type="number" id="lab-ph" class="form-control form-control-mono" step="0.01" placeholder="7.50"></div>
+                <div><label class="form-label">TSS (mg/L)</label><input type="number" id="lab-tss" class="form-control form-control-mono" step="0.1" placeholder="0.0"></div>
+                <div><label class="form-label">Fe (mg/L)</label><input type="number" id="lab-fe" class="form-control form-control-mono" step="0.001" placeholder="0.000"></div>
+                <div><label class="form-label">Mn (mg/L)</label><input type="number" id="lab-mn" class="form-control form-control-mono" step="0.001" placeholder="0.000"></div>
+              </div>
+              <div class="form-row"><label class="form-label">Upload Sertifikat PDF (maks 8MB)</label><input type="file" id="lab-pdf" accept="application/pdf" class="form-control" style="height:auto;padding:.4rem .7rem;"></div>
+              <button type="submit" class="btn btn-primary" style="width:100%;"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Hasil Lab</button>
+            </form>
+          </div>
+          <div class="card-panel" style="padding:0;">
+            <div class="card-panel-header" style="padding:var(--sp-lg);">
+              <span class="card-panel-title">Riwayat Hasil Lab</span>
+              <button class="btn btn-sm btn-outline" id="btn-refresh-lab"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+            </div>
+            <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
+              <div class="table-scroll">
+                <table class="table-mine">
+                  <thead><tr><th>Periode</th><th>Pond</th><th>Laboratorium</th><th>No. Sertifikat</th><th>pH</th><th>TSS</th><th>PDF</th><th>Aksi</th></tr></thead>
+                  <tbody id="lab-table-body"><tr><td colspan="8" class="text-center text-muted" style="padding:2rem;">Belum ada data lab.</td></tr></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ LAPORAN ══════════ -->
+      <div id="view-laporan" class="view-container hidden">
+        <div class="breadcrumb-row">Pelaporan Resmi</div>
+        <h1 class="page-title">Laporan Resmi Pemantauan</h1>
+        <p class="page-subtitle">Generate laporan harian/bulanan, kirim ke supervisor untuk review & tanda tangan, lalu teruskan ke KTT.</p>
+        <div class="card-panel">
+          <div class="card-panel-header">
+            <span class="card-panel-title">Filter Data Laporan</span>
+            <button class="btn btn-sm btn-outline" id="btn-refresh-report"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+          </div>
+          <div id="rep-operator-note" class="hidden" style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:var(--r-sm);padding:.6rem .9rem;font-size:12px;color:var(--warning-text);margin-bottom:1rem;">
+            <i class="fa-solid fa-info-circle me-1"></i>Sebagai Operator, Anda dapat generate dan mengirim laporan ke Supervisor untuk direview.
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:.75rem;">
+            <div><label class="form-label">Dari Tanggal</label><input type="date" id="rep-start" class="form-control"></div>
+            <div><label class="form-label">Sampai Tanggal</label><input type="date" id="rep-end" class="form-control"></div>
+            <div><label class="form-label">Settling Pond</label><select id="rep-pond" class="form-control"><option value="">Semua Pond</option></select></div>
+            <div><label class="form-label">Titik Aliran</label><input type="text" id="rep-aliran" class="form-control" placeholder="OUTLET (opsional)"></div>
+          </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="btn-rep-filter"><i class="fa-solid fa-magnifying-glass me-1"></i>Tampilkan Data</button>
+            <button class="btn btn-outline" id="btn-open-report-modal"><i class="fa-solid fa-file-contract me-1"></i>Buat & Kirim Laporan</button>
+          </div>
+        </div>
+        <div class="card-panel spv-manajemen-only" style="padding:0;">
+          <div class="card-panel-header" style="padding:var(--sp-lg);">
+            <span class="card-panel-title">Data Hasil Pemantauan (Pilih baris untuk Laporan Harian)</span>
+          </div>
+          <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
+            <div class="table-scroll">
+              <table class="table-mine">
+                <thead><tr><th>Pilih</th><th>Tanggal</th><th>Pond</th><th>Aliran</th><th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th><th>Status</th></tr></thead>
+                <tbody id="rep-table-body"><tr><td colspan="9" class="text-center text-muted" style="padding:2rem;">Filter & tampilkan data terlebih dahulu.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card-panel laporan-status-list">
+          <div class="card-panel-header">
+            <span class="card-panel-title"><i class="fa-solid fa-timeline me-1"></i>Status Laporan Terkirim</span>
+            <button class="btn btn-sm btn-outline" onclick="refreshLaporanList()"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+          </div>
+          <div class="table-outer"><div class="table-scroll">
+            <table class="table-mine">
+              <thead><tr><th>Report ID</th><th>Tipe</th><th>Nomor Sampel</th><th>Status</th><th>Diperiksa SPV</th><th>Aksi</th></tr></thead>
+              <tbody id="laporan-list-body"><tr><td colspan="6" class="text-center text-muted" style="padding:2rem;">Belum ada laporan dikirim.</td></tr></tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- ══════════ MASTER DATA ══════════ -->
+      <div id="view-master" class="view-container hidden">
+        <div class="breadcrumb-row">Administrasi</div>
+        <h1 class="page-title">Master Data</h1>
+        <p class="page-subtitle">Kelola titik settling pond dan parameter baku mutu yang digunakan sebagai acuan validasi otomatis.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
+          <div class="card-panel" style="padding:0;">
+            <div class="card-panel-header" style="padding:var(--sp-lg);">
+              <span class="card-panel-title">Titik Settling Pond</span>
+              <div style="display:flex;gap:.5rem;">
+                <button class="btn btn-primary btn-sm" id="btn-add-pond"><i class="fa-solid fa-plus me-1"></i>Tambah Pond</button>
+                <button class="btn btn-outline btn-sm" id="btn-refresh-master"><i class="fa-solid fa-rotate me-1"></i>Refresh</button>
+              </div>
+            </div>
+            <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
+              <div class="table-scroll">
+                <table class="table-mine">
+                  <thead><tr><th>Pond ID</th><th>Nama</th><th>Blok Area</th><th>Lat</th><th>Lng</th><th>Status</th><th>Aksi</th></tr></thead>
+                  <tbody id="master-pond-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="card-panel" style="padding:0;">
+            <div class="card-panel-header" style="padding:var(--sp-lg);">
+              <span class="card-panel-title">Parameter Baku Mutu</span>
+            </div>
+            <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
+              <div class="table-scroll">
+                <table class="table-mine">
+                  <thead><tr><th>Kode</th><th>Parameter</th><th>Min</th><th>Maks</th><th>Edit</th></tr></thead>
+                  <tbody id="master-bakumutu-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ SETTINGS ══════════ -->
+      <div id="view-settings" class="view-container hidden">
+        <div class="breadcrumb-row">Administrasi</div>
+        <h1 class="page-title">Pengaturan Sistem</h1>
+        <p class="page-subtitle">Konfigurasi kop surat, identitas perusahaan, dan manajemen akun pengguna.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-lg);">
+          <div>
+            <div class="card-panel">
+              <div class="card-panel-header"><span class="card-panel-title">Identitas Perusahaan & Kop Surat</span></div>
+              <form id="form-settings" novalidate>
+                <div class="form-row"><label class="form-label">Nama Perusahaan</label><input type="text" id="set-company" class="form-control"></div>
+                <div class="form-row"><label class="form-label">Nama Aplikasi</label><input type="text" id="set-appname" class="form-control"></div>
+                <div class="form-row"><label class="form-label">Nama Site / Region</label><input type="text" id="set-region" class="form-control"></div>
+                <div class="form-row"><label class="form-label">Alamat Perusahaan</label><input type="text" id="set-address" class="form-control"></div>
+                <div class="form-row"><label class="form-label">Nomor IUP / Izin</label><input type="text" id="set-license" class="form-control"></div>
+                <div class="form-row"><label class="form-label">Telepon / Email Kontak</label><input type="text" id="set-phone" class="form-control"></div>
+                <div class="form-row"><label class="form-label">Warna Tema Utama</label><input type="color" id="set-primary" class="form-control" style="height:36px;padding:2px 6px;"></div>
+                <div class="form-row"><label class="form-label">Logo Perusahaan (PNG/JPG)</label><input type="file" id="set-logo" accept="image/*" class="form-control" style="height:auto;padding:.4rem .7rem;"></div>
+                <div class="form-row">
+                  <label class="form-label">Gambar Latar Halaman Login</label>
+                  <div style="display:flex;gap:.5rem;margin-bottom:.35rem;">
+                    <input type="file" id="set-login-bg-file" accept="image/*" class="form-control" style="height:auto;padding:.35rem .6rem;">
+                  </div>
+                  <input type="text" id="set-login-bg" class="form-control" placeholder="Atau paste URL gambar: https://... atau link Google Drive">
+                  <div style="font-size:10.5px;color:var(--text-muted);margin-top:.25rem;">Bisa upload file langsung, link gambar HTTPS, atau link sharing Google Drive.</div>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Pengaturan</button>
+              </form>
+            </div>
+          </div>
+          <div>
+            <div class="card-panel" style="padding:0;">
+              <div class="card-panel-header" style="padding:var(--sp-lg);">
+                <span class="card-panel-title">Manajemen Pengguna</span>
+                <button class="btn btn-primary btn-sm" id="btn-add-user"><i class="fa-solid fa-user-plus me-1"></i>Tambah Pengguna</button>
+              </div>
+              <div class="table-outer" style="border-radius:0;border:0;border-top:1px solid var(--border);">
+                <div class="table-scroll">
+                  <table class="table-mine">
+                    <thead><tr><th>Username</th><th>Nama Lengkap</th><th>Role</th><th>Status</th><th>Edit</th></tr></thead>
+                    <tbody id="user-table-body"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="card-panel" style="margin-top:var(--sp-lg);">
+              <div class="card-panel-header"><span class="card-panel-title"><i class="fa-solid fa-circle-info me-1"></i>Info Sistem</span></div>
+              <div style="font-size:12px;color:var(--text-secondary);display:grid;gap:.4rem;">
+                <div><b>Versi Aplikasi:</b> 2.1.0</div>
+                <div><b>Stack:</b> Google Apps Script · Google Sheets · Drive</div>
+                <div><b>Standar Acuan:</b> Kepmen LH No. 113/2003 · Perda Kaltim No. 02/2011</div>
+                <div><b>Refresh Notifikasi:</b> Setiap 30 detik</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="btn-refresh-users-wrap" style="display:none;"><button id="btn-refresh-users"></button></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- BOTTOM NAV (Mobile) -->
+  <nav class="bottom-nav no-print">
+    <div class="bottom-nav-item active" data-view="dashboard" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-gauge-high"></i>Dashboard</div>
+    <div class="bottom-nav-item" data-view="form-harian" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-flask-vial"></i>Input</div>
+    <div class="bottom-nav-item" data-view="log-table" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-table-list"></i>Log</div>
+    <div class="bottom-nav-item" data-view="disposisi-investigasi" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-triangle-exclamation"></i>Insiden</div>
+    <div class="bottom-nav-item" data-view="laporan" data-roles="OPERATOR,SUPERVISOR,MANAJEMEN,ADMIN"><i class="fa-solid fa-file-lines"></i>Laporan</div>
+  </nav>
+</div>
+
+<!-- ═══════════════════ MODALS ═══════════════════ -->
+
+<!-- Modal Tanda Tangan -->
+<div class="modal-backdrop" id="modal-signature">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h5><i class="fa-solid fa-signature me-1"></i>Tanda Tangan Digital Saya</h5>
+      <button class="btn btn-sm btn-outline" id="cancel-modal-signature"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:.75rem;">Gambar tanda tangan menggunakan mouse atau jari. Tanda tangan akan tertanam otomatis di dokumen cetak.</p>
+      <div id="sig-status-label" style="font-size:12px;color:var(--text-secondary);margin-bottom:.5rem;"></div>
+      <div style="border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;touch-action:none;background:#FAFAFA;">
+        <canvas id="sig-canvas" style="display:block;width:100%;height:160px;"></canvas>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" id="btn-sig-clear"><i class="fa-solid fa-eraser me-1"></i>Hapus</button>
+      <button class="btn btn-primary" id="save-modal-signature"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Tanda Tangan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Disposisi -->
+<div class="modal-backdrop" id="modal-disposisi">
+  <div class="modal-box">
+    <div class="kop-header">
+      <div class="icon-badge"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div><h5>Buat Disposisi Tindak Lanjut</h5><p>Insiden pelanggaran baku mutu memerlukan investigasi akar masalah.</p></div>
+      <button class="btn btn-sm" id="close-modal-disposisi" style="margin-left:auto;color:rgba(255,255,255,.7);background:rgba(0,0,0,.15);border:none;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="disp-log-id">
+      <div class="form-row"><label class="form-label">Parameter Melanggar</label><input type="text" id="disp-parameter" class="form-control" readonly></div>
+      <div class="form-row"><label class="form-label">Instruksi Tindak Lanjut *</label><textarea id="disp-instruksi" class="form-control" rows="2" placeholder="Langkah penanganan yang harus dilakukan…" required></textarea></div>
+      <div class="form-row"><label class="form-label">PIC Pelaksana *</label><input type="text" id="disp-pic" class="form-control" placeholder="Nama penanggung jawab investigasi" required></div>
+      <div class="form-row"><label class="form-label">Temuan Awal (opsional)</label><textarea id="disp-temuan" class="form-control" rows="2" placeholder="Dugaan akar masalah awal…"></textarea></div>
+      <div class="form-row"><label class="form-label">Target Penyelesaian</label><input type="date" id="disp-target" class="form-control"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="cancel-modal-disposisi">Batal</button>
+      <button class="btn btn-primary" id="save-modal-disposisi"><i class="fa-solid fa-paper-plane me-1"></i>Kirim Disposisi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Settling Pond -->
+<div class="modal-backdrop" id="modal-pond">
+  <div class="modal-box">
+    <div class="kop-header">
+      <div class="icon-badge"><i class="fa-solid fa-location-dot"></i></div>
+      <div><h5 id="pond-modal-title">Tambah Settling Pond</h5><p>Data titik sampling & koordinat lokasi</p></div>
+      <button class="btn btn-sm" onclick="document.getElementById('modal-pond').classList.remove('active')" style="margin-left:auto;color:rgba(255,255,255,.7);background:rgba(0,0,0,.15);border:none;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pond-id">
+      <div class="form-row"><label class="form-label">Nama Settling Pond *</label><input type="text" id="pond-nama" class="form-control" placeholder="Settling Pond Pit Barat" required></div>
+      <div class="form-row"><label class="form-label">Blok / Area *</label><input type="text" id="pond-blok" class="form-control" placeholder="Pit Barat Kompartemen 1-3" required></div>
+      <div class="coord-input-row form-row">
+        <div><label class="form-label">Latitude</label><input type="text" id="pond-lat" class="form-control form-control-mono" placeholder="-0.494820"></div>
+        <div><label class="form-label">Longitude</label><input type="text" id="pond-lng" class="form-control form-control-mono" placeholder="117.143210"></div>
+      </div>
+      <div class="coord-preview" id="pond-coord-preview">Belum ada koordinat</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.75rem;">
+        <div><label class="form-label">Jumlah Kompartemen</label><input type="number" id="pond-kompartemen" class="form-control" value="1" min="1" max="10"></div>
+        <div><label class="form-label">Status Operasi</label>
+          <select id="pond-status" class="form-control"><option value="AKTIF">AKTIF</option><option value="TIDAK AKTIF">TIDAK AKTIF</option><option value="DALAM KONSTRUKSI">DALAM KONSTRUKSI</option></select></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="cancel-modal-pond">Batal</button>
+      <button class="btn btn-primary" id="save-modal-pond"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Pond</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Kontrol Laporan -->
+<div class="modal-backdrop" id="modalReportConfig">
+  <div class="modal-box wide">
+    <div class="kop-header">
+      <div class="icon-badge"><i class="fa-solid fa-file-contract"></i></div>
+      <div>
+        <h5>Modal Kontrol Pelaporan</h5>
+        <p id="modal-report-subtitle">Konfigurasi, generate nomor sampel, kirim untuk review &amp; tanda tangan</p>
+      </div>
+      <button class="btn btn-sm" id="close-modal-report" style="margin-left:auto;color:rgba(255,255,255,.7);background:rgba(0,0,0,.15);border:none;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="max-height:80vh;overflow-y:auto;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;">
+
+        <!-- Kolom Kiri -->
+        <div>
+          <!-- Jenis Dokumen -->
+          <div class="form-row">
+            <label class="form-label">Jenis Dokumen *</label>
+            <select id="rep-jenis-dokumen" class="form-control" required>
+              <option value="HARIAN">Laporan Harian (data pengukuran tunggal)</option>
+              <option value="BULANAN">Laporan Bulanan (rekapitulasi periode)</option>
+            </select>
+          </div>
+
+          <!-- ── HARIAN: pilih tanggal ── -->
+          <div id="rep-date-harian-row" class="form-row">
+            <label class="form-label"><i class="fa-solid fa-calendar-day me-1" style="color:var(--info);"></i>Tanggal Laporan *</label>
+            <input type="date" id="rep-harian-tanggal" class="form-control">
+            <div style="font-size:10.5px;color:var(--text-muted);margin-top:.3rem;">Pilih tanggal → data akan dimuat otomatis ke tabel di bawah</div>
+          </div>
+
+          <!-- ── BULANAN: pilih periode ── -->
+          <div id="rep-period-bulanan-row" class="form-row hidden">
+            <label class="form-label"><i class="fa-solid fa-calendar-range me-1" style="color:var(--info);"></i>Periode Laporan *</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:.2rem;">Dari Tanggal</div>
+                <input type="date" id="rep-start-modal" class="form-control">
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--text-muted);margin-bottom:.2rem;">Sampai Tanggal</div>
+                <input type="date" id="rep-end-modal" class="form-control">
+              </div>
+            </div>
+          </div>
+
+          <!-- Area Pond -->
+          <div class="form-row">
+            <label class="form-label">Area (Kode Settling Pond) *</label>
+            <select id="rep-area-kode-select" class="form-control"><option value="">— Pilih Settling Pond —</option></select>
+            <input type="hidden" id="rep-area-kode">
+          </div>
+
+          <!-- Nomor Sampel -->
+          <div class="form-row">
+            <label class="form-label">Nomor Sampel</label>
+            <div style="display:flex;gap:.5rem;">
+              <input type="text" id="rep-nomor-sampel" class="form-control form-control-mono" placeholder="Pilih pond lalu klik Generate" style="flex:1;">
+              <button type="button" class="btn btn-outline btn-sm" id="btn-gen-nomor"><i class="fa-solid fa-rotate me-1"></i>Generate</button>
+            </div>
+            <div style="font-size:10.5px;color:var(--text-muted);margin-top:.25rem;">Format: DDMMYY/SP-[POND]/[ALIRAN]</div>
+          </div>
+
+          <!-- Sumber Air Limbah (Manual) -->
+          <div class="form-row">
+            <label class="form-label">Sumber Air Limbah *</label>
+            <input type="text" id="rep-sumber-limbah" class="form-control" placeholder="Ketik sumber air limbah (contoh: Runoff Tambang)" value="Runoff Tambang" required>
+          </div>
+
+          <!-- ── TABEL PREVIEW DATA (HARIAN) ── -->
+          <div id="rep-modal-table-wrap" class="hidden">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);margin-bottom:.5rem;">
+              <i class="fa-solid fa-table me-1"></i>Data Sampel pada Tanggal Terpilih
+            </div>
+            <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-sm);max-height:200px;overflow-y:auto;">
+              <table class="table-mine" style="font-size:11px;">
+                <thead>
+                  <tr>
+                    <th>Jam</th><th>Pond</th><th>Aliran</th>
+                    <th>pH</th><th>TSS</th><th>Fe</th><th>Mn</th><th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="rep-modal-table-body">
+                  <tr><td colspan="8" class="text-muted" style="text-align:center;padding:.75rem;">Pilih tanggal untuk memuat data</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="rep-modal-table-count" style="font-size:10.5px;color:var(--text-muted);margin-top:.3rem;"></div>
+
+            <!-- Foto Dokumentasi -->
+            <div id="rep-modal-photo-strip-wrap" class="hidden" style="margin-top:.85rem;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);margin-bottom:.5rem;">
+                <i class="fa-solid fa-camera me-1"></i>Dokumentasi Foto
+              </div>
+              <div id="rep-modal-photo-strip" class="modal-photo-strip"></div>
+            </div>
+          </div>
+
+          <!-- Loading state untuk tabel modal -->
+          <div id="rep-modal-table-loading" class="hidden" style="text-align:center;padding:.75rem;font-size:12px;color:var(--text-muted);">
+            <i class="fa-solid fa-spinner fa-spin me-1"></i>Memuat data…
+          </div>
+        </div>
+
+        <!-- Kolom Kanan -->
+        <div>
+          <!-- Pratinjau Tanda Tangan -->
+          <div style="background:var(--compliant-bg);border:1px solid var(--compliant-border);border-radius:var(--r-sm);padding:1rem;margin-bottom:1rem;">
+            <div style="font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.5rem;"><i class="fa-solid fa-signature me-1"></i>Pratinjau Blok Tanda Tangan (Otomatis)</div>
+            <div id="rep-signature-preview" style="font-size:12.5px;line-height:1.8;color:var(--text-secondary);"><i>Memuat…</i></div>
+          </div>
+
+          <!-- Alur Persetujuan -->
+          <div style="background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-sm);padding:.85rem;font-size:12px;color:var(--text-secondary);line-height:1.7;margin-bottom:1rem;">
+            <div style="font-weight:700;margin-bottom:.35rem;"><i class="fa-solid fa-diagram-project me-1"></i>Alur Persetujuan Laporan</div>
+            <div>1. <b>Operator</b> — Buat &amp; kirim ke Supervisor</div>
+            <div>2. <b>Supervisor</b> — Review, tanda tangan, teruskan ke KTT</div>
+            <div>3. <b>KTT</b> — Setujui &amp; tanda tangan final</div>
+            <div>4. <b>Supervisor / KTT</b> — Cetak / Unduh laporan final</div>
+          </div>
+
+          <!-- Ekspor Data (SPV/Manajemen/Admin only) -->
+          <div class="spv-manajemen-only">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-secondary);margin-bottom:.5rem;">Ekspor Data</div>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+              <button class="btn btn-outline btn-sm" id="btn-export-xls"><i class="fa-solid fa-file-excel me-1"></i>Ekspor XLS</button>
+              <button class="btn btn-outline btn-sm" id="btn-export-csv"><i class="fa-solid fa-file-csv me-1"></i>Ekspor CSV</button>
+              <button class="btn btn-outline btn-sm" id="btn-preview-print"><i class="fa-solid fa-print me-1"></i>Cetak Preview</button>
+              <button class="btn btn-outline btn-sm" id="btn-export-pdf"><i class="fa-solid fa-file-pdf me-1"></i>PDF / Print</button>
+            </div>
+          </div>
+
+          <!-- Info jumlah data terpilih (Bulanan) -->
+          <div id="rep-bulanan-summary" class="hidden" style="margin-top:1rem;padding:.65rem .85rem;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-sm);font-size:11.5px;color:var(--text-secondary);">
+            <i class="fa-solid fa-circle-info me-1"></i><span id="rep-bulanan-summary-text">Pilih periode untuk melihat ringkasan data</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" id="close-modal-report-cancel" onclick="document.getElementById('modalReportConfig').classList.remove('active')">Batal</button>
+      <button class="btn btn-primary" id="btn-send-to-spv">
+        <i class="fa-solid fa-paper-plane me-1"></i><span id="btn-send-label">Kirim ke Supervisor</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pengaturan Profil Pengguna -->
+<div class="modal-backdrop" id="modal-profile">
+  <div class="modal-box">
+    <div class="kop-header">
+      <div class="icon-badge"><i class="fa-solid fa-user-gear"></i></div>
+      <div>
+        <h5>Pengaturan Profil Pengguna</h5>
+        <p>Perbarui identitas, foto profil, dan kata sandi akun Anda</p>
+      </div>
+      <button class="btn btn-sm" id="close-modal-profile" style="margin-left:auto;color:rgba(255,255,255,.7);background:rgba(0,0,0,.15);border:none;"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="form-profile" novalidate>
+        <!-- Foto Profil -->
+        <div style="display:flex;align-items:center;gap:1.25rem;margin-bottom:1.25rem;padding:.75rem;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--r-sm);">
+          <div id="profile-avatar-preview" style="width:64px;height:64px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;overflow:hidden;flex-shrink:0;border:2px solid var(--border);">
+            ?
+          </div>
+          <div style="flex:1;">
+            <label class="form-label" style="margin-bottom:.2rem;">Foto Profil</label>
+            <input type="file" id="profile-photo-input" accept="image/*" class="form-control" style="height:auto;padding:.3rem .5rem;font-size:12px;">
+            <div style="font-size:10.5px;color:var(--text-muted);margin-top:.25rem;">Format JPG/PNG, maksimal 2MB</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label">Nama Lengkap *</label>
+          <input type="text" id="profile-nama" class="form-control" required>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Username *</label>
+          <input type="text" id="profile-username" class="form-control" required>
+        </div>
+        <div class="form-row">
+          <label class="form-label">Role Akun</label>
+          <select id="profile-role" class="form-control">
+            <option value="OPERATOR">OPERATOR</option>
+            <option value="SUPERVISOR">SUPERVISOR</option>
+            <option value="MANAJEMEN">MANAJEMEN</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <hr style="border:0;border-top:1px solid var(--border);margin:1.25rem 0;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:.75rem;">
+          <i class="fa-solid fa-key me-1"></i>Ganti Kata Sandi (Opsional)
+        </div>
+        <div class="form-row">
+          <label class="form-label">Kata Sandi Baru</label>
+          <input type="password" id="profile-password" class="form-control" placeholder="Kosongkan jika tidak ingin mengubah kata sandi">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Konfirmasi Kata Sandi Baru</label>
+          <input type="password" id="profile-password-confirm" class="form-control" placeholder="Ulangi kata sandi baru">
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" id="cancel-modal-profile">Batal</button>
+      <button type="button" class="btn btn-primary" id="save-modal-profile"><i class="fa-solid fa-floppy-disk me-1"></i>Simpan Perubahan</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
+
