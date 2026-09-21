@@ -19,7 +19,7 @@ const AppState = {
 const LOCALSTORAGE_DRAFT_KEY = 'enviromine_draft_daily_log';
 
 // URL Backend Google Apps Script Web App (API Endpoint)
-const BACKEND_API_URL = 'https://script.google.com/macros/s/AKfycbwBRGtS1lFaL4yBz0sviDYSDAMEB4qfo83fxSrawuQK2URtKXlfMNCJIWUiPIQqv0k/exec';
+const BACKEND_API_URL = 'https://script.google.com/macros/s/AKfycbzEfyZyVe-KwQLCiFE2jHVw9_9ZtZPcu_7Zko0X_aHa4-BxyDmLftlU1Nt6ctEObl4Z/exec';
 
 // ============================================================
 // 1. WRAPPER KOMUNIKASI SERVER (DUAL-MODE: GAS / GITHUB PAGES)
